@@ -8,10 +8,15 @@ import {
   type SkillScore, type InsertSkillScore,
   type TaskApplication, type InsertTaskApplication
 } from "@shared/schema";
-import { db } from "./db";
+import { db, pool } from "./db";
 import { eq, and, desc } from "drizzle-orm";
+import session from "express-session";
+import connectPg from "connect-pg-simple";
+
+const PostgresSessionStore = connectPg(session);
 
 export interface IStorage {
+  sessionStore: session.SessionStore;
   // User operations
   getUser(id: string): Promise<User | undefined>;
   getUserByUsername(username: string): Promise<User | undefined>;
@@ -54,6 +59,12 @@ export interface IStorage {
 }
 
 export class DatabaseStorage implements IStorage {
+  public sessionStore: session.SessionStore;
+
+  constructor() {
+    this.sessionStore = new PostgresSessionStore({ pool, createTableIfMissing: true });
+  }
+
   // User operations
   async getUser(id: string): Promise<User | undefined> {
     const [user] = await db.select().from(users).where(eq(users.id, id));
