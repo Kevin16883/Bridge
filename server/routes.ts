@@ -299,6 +299,57 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get performer's challenge results (performer only)
+  app.get("/api/performer/challenge-results", requirePerformer, async (req, res, next) => {
+    try {
+      const results = await storage.getChallengeResultsByPerformer(req.user!.id);
+      res.json(results);
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  // Get performer dashboard stats (performer only)
+  app.get("/api/performer/stats", requirePerformer, async (req, res, next) => {
+    try {
+      const results = await storage.getChallengeResultsByPerformer(req.user!.id);
+      const skillScores = await storage.getSkillScoresByPerformer(req.user!.id);
+      const allChallenges = await storage.getAllChallenges();
+      
+      // Create a map of challenge IDs to points
+      const challengePointsMap = new Map(allChallenges.map(c => [c.id, c.points]));
+      
+      // Calculate total points earned (sum of challenge.points for completed challenges)
+      const totalPoints = results.reduce((sum, r) => {
+        const challengePoints = challengePointsMap.get(r.challengeId) || 0;
+        return sum + challengePoints;
+      }, 0);
+      
+      const completedChallenges = results.length;
+      
+      // Average score is based on performance (0-100 scale)
+      const avgScore = completedChallenges > 0 
+        ? Math.round(results.reduce((sum, r) => sum + (r.score || 0), 0) / completedChallenges)
+        : 0;
+      
+      // Calculate overall skill score
+      const overallScore = skillScores.length > 0
+        ? Math.round(skillScores.reduce((sum, s) => sum + s.score, 0) / skillScores.length)
+        : 0;
+
+      res.json({
+        totalPoints,
+        completedChallenges,
+        avgScore,
+        overallScore,
+        completedTasks: 0, // TODO: implement when task completion is added
+        totalEarnings: 0, // TODO: implement when task completion is added
+      });
+    } catch (error) {
+      next(error);
+    }
+  });
+
   const httpServer = createServer(app);
 
   return httpServer;

@@ -3,8 +3,10 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Clock, Trophy, CheckCircle2 } from "lucide-react";
 import { SkillBadge } from "./skill-badge";
+import { Link } from "wouter";
 
 interface ChallengeCardProps {
+  id: string;
   title: string;
   description: string;
   skillType: "logic" | "creative" | "technical" | "communication";
@@ -22,6 +24,7 @@ const difficultyConfig = {
 };
 
 export function ChallengeCard({
+  id,
   title,
   description,
   skillType,
@@ -34,7 +37,7 @@ export function ChallengeCard({
   const diffConfig = difficultyConfig[difficulty];
   
   return (
-    <Card className={`hover-elevate transition-transform hover:-translate-y-1 ${completed ? 'border-primary/50' : ''}`} data-testid="card-challenge">
+    <Card className={`hover-elevate transition-transform hover:-translate-y-1 ${completed ? 'border-primary/50' : ''}`} data-testid={`card-challenge-${id}`}>
       <CardHeader className="space-y-3">
         <div className="flex items-start justify-between gap-2">
           <div className="space-y-2 flex-1">
@@ -48,7 +51,7 @@ export function ChallengeCard({
           </div>
         </div>
         
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           <SkillBadge type={skillType} />
           <Badge variant="outline" className={diffConfig.color}>
             {diffConfig.label}
@@ -78,11 +81,14 @@ export function ChallengeCard({
       
       <CardFooter>
         <Button 
-          className="w-full" 
+          className="w-full"
           variant={completed ? "outline" : "default"}
-          data-testid={completed ? "button-review-challenge" : "button-start-challenge"}
+          data-testid={completed ? `button-review-${id}` : `button-start-${id}`}
+          asChild
         >
-          {completed ? "Review" : "Start Challenge"}
+          <Link href={`/challenges/${id}`}>
+            {completed ? "Review" : "Start Challenge"}
+          </Link>
         </Button>
       </CardFooter>
     </Card>
