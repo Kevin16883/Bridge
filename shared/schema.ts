@@ -86,7 +86,9 @@ export const challengeResults = pgTable("challenge_results", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   challengeId: varchar("challenge_id").notNull().references(() => challenges.id),
   performerId: varchar("performer_id").notNull().references(() => users.id),
+  response: text("response").notNull(),
   score: integer("score").notNull(),
+  feedback: text("feedback"),
   completedAt: timestamp("completed_at").defaultNow().notNull(),
 });
 

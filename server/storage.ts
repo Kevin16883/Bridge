@@ -40,6 +40,7 @@ export interface IStorage {
   
   // Challenge operations
   createChallenge(challenge: InsertChallenge): Promise<Challenge>;
+  getChallenge(id: string): Promise<Challenge | undefined>;
   getAllChallenges(): Promise<Challenge[]>;
   getChallengesBySkillType(skillType: string): Promise<Challenge[]>;
   
@@ -142,6 +143,11 @@ export class DatabaseStorage implements IStorage {
   async createChallenge(insertChallenge: InsertChallenge): Promise<Challenge> {
     const [challenge] = await db.insert(challenges).values(insertChallenge).returning();
     return challenge;
+  }
+
+  async getChallenge(id: string): Promise<Challenge | undefined> {
+    const [challenge] = await db.select().from(challenges).where(eq(challenges.id, id));
+    return challenge || undefined;
   }
 
   async getAllChallenges(): Promise<Challenge[]> {
