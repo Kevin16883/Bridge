@@ -91,6 +91,53 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Create project with custom tasks (edited AI or manual) (provider only)
+  app.post("/api/projects/custom-create", requireProvider, async (req, res, next) => {
+    try {
+      const validated = z.object({
+        demand: z.string().min(10),
+        totalBudget: z.number().positive(),
+        tasks: z.array(z.object({
+          title: z.string().min(1),
+          description: z.string().min(1),
+          skills: z.array(z.string()),
+          estimatedTime: z.string(),
+          budget: z.number().positive(),
+          difficulty: z.enum(["easy", "medium", "hard"]),
+        })).min(1, "At least one task is required"),
+      }).parse(req.body);
+
+      // Create project
+      const project = await storage.createProject({
+        providerId: req.user!.id,
+        originalDemand: validated.demand,
+        status: "active",
+        totalBudget: validated.totalBudget,
+      });
+
+      // Create tasks
+      const createdTasks = await storage.createTasks(
+        validated.tasks.map((task) => ({
+          projectId: project.id,
+          title: task.title,
+          description: task.description,
+          skills: task.skills,
+          estimatedTime: task.estimatedTime,
+          budget: task.budget,
+          difficulty: task.difficulty,
+          status: "pending" as const,
+        }))
+      );
+
+      res.status(201).json({ project, tasks: createdTasks });
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ error: error.errors[0].message });
+      }
+      next(error);
+    }
+  });
+
   // Create project with AI-generated tasks (provider only)
   app.post("/api/projects", requireProvider, async (req, res, next) => {
     try {

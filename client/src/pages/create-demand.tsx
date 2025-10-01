@@ -1,23 +1,28 @@
 import { useState } from "react";
 import { useLocation } from "wouter";
 import { useMutation } from "@tanstack/react-query";
-import { ArrowLeft, Sparkles, AlertCircle } from "lucide-react";
+import { ArrowLeft, Sparkles, AlertCircle, Plus, Trash2, Edit2, Save } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 
+interface Task {
+  title: string;
+  description: string;
+  skills: string[];
+  estimatedTime: string;
+  difficulty: "easy" | "medium" | "hard";
+  budget: number;
+}
+
 interface TaskBreakdown {
-  tasks: {
-    title: string;
-    description: string;
-    skills: string[];
-    estimatedTime: string;
-    difficulty: string;
-    budget: string;
-  }[];
+  tasks: Task[];
   totalBudget: string;
   projectSummary: string;
 }
@@ -25,8 +30,10 @@ interface TaskBreakdown {
 export default function CreateDemand() {
   const [, setLocation] = useLocation();
   const [demand, setDemand] = useState("");
-  const [analysis, setAnalysis] = useState<TaskBreakdown | null>(null);
-  const [step, setStep] = useState<"input" | "review">("input");
+  const [step, setStep] = useState<"input" | "edit-tasks">("input");
+  const [tasks, setTasks] = useState<Task[]>([]);
+  const [editingIndex, setEditingIndex] = useState<number | null>(null);
+  const [skillInput, setSkillInput] = useState("");
 
   const analyzeMutation = useMutation({
     mutationFn: async (demandText: string) => {
@@ -34,14 +41,26 @@ export default function CreateDemand() {
       return await response.json() as TaskBreakdown;
     },
     onSuccess: (data) => {
-      setAnalysis(data);
-      setStep("review");
+      // Convert budget strings to numbers and difficulty values
+      const difficultyMap: Record<string, "easy" | "medium" | "hard"> = {
+        "beginner": "easy",
+        "intermediate": "medium",
+        "advanced": "hard",
+      };
+      
+      const convertedTasks = data.tasks.map(task => ({
+        ...task,
+        budget: parseFloat(task.budget.replace(/[^0-9.]/g, '')) || 100,
+        difficulty: difficultyMap[task.difficulty] || "medium",
+      }));
+      setTasks(convertedTasks);
+      setStep("edit-tasks");
     },
   });
 
   const createMutation = useMutation({
-    mutationFn: async (demandText: string) => {
-      const response = await apiRequest("POST", "/api/projects/ai-create", { demand: demandText });
+    mutationFn: async (data: { demand: string; totalBudget: number; tasks: Task[] }) => {
+      const response = await apiRequest("POST", "/api/projects/custom-create", data);
       return await response.json();
     },
     onSuccess: () => {
@@ -50,16 +69,77 @@ export default function CreateDemand() {
     },
   });
 
-  const handleAnalyze = () => {
-    if (demand.trim().length < 10) {
-      return;
-    }
+  const handleAnalyzeWithAI = () => {
+    if (demand.trim().length < 10) return;
     analyzeMutation.mutate(demand);
   };
 
-  const handleCreate = () => {
-    createMutation.mutate(demand);
+  const handleSkipAI = () => {
+    // Start with one empty task
+    setTasks([{
+      title: "",
+      description: "",
+      skills: [],
+      estimatedTime: "1 hour",
+      difficulty: "medium",
+      budget: 100,
+    }]);
+    setStep("edit-tasks");
+    setEditingIndex(0);
   };
+
+  const handleAddTask = () => {
+    setTasks([...tasks, {
+      title: "",
+      description: "",
+      skills: [],
+      estimatedTime: "1 hour",
+      difficulty: "medium",
+      budget: 100,
+    }]);
+    setEditingIndex(tasks.length);
+  };
+
+  const handleDeleteTask = (index: number) => {
+    setTasks(tasks.filter((_, i) => i !== index));
+    if (editingIndex === index) {
+      setEditingIndex(null);
+    }
+  };
+
+  const handleUpdateTask = (index: number, field: keyof Task, value: any) => {
+    const updated = [...tasks];
+    updated[index] = { ...updated[index], [field]: value };
+    setTasks(updated);
+  };
+
+  const handleAddSkill = (index: number) => {
+    if (!skillInput.trim()) return;
+    const updated = [...tasks];
+    updated[index] = {
+      ...updated[index],
+      skills: [...updated[index].skills, skillInput.trim()],
+    };
+    setTasks(updated);
+    setSkillInput("");
+  };
+
+  const handleRemoveSkill = (taskIndex: number, skillIndex: number) => {
+    const updated = [...tasks];
+    updated[taskIndex] = {
+      ...updated[taskIndex],
+      skills: updated[taskIndex].skills.filter((_, i) => i !== skillIndex),
+    };
+    setTasks(updated);
+  };
+
+  const handlePublish = () => {
+    const totalBudget = tasks.reduce((sum, task) => sum + task.budget, 0);
+    createMutation.mutate({ demand, totalBudget, tasks });
+  };
+
+  const totalBudget = tasks.reduce((sum, task) => sum + task.budget, 0);
+  const isPublishDisabled = tasks.length === 0 || tasks.some(t => !t.title || !t.description) || !demand.trim();
 
   const skillColors: Record<string, string> = {
     logic: "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400",
@@ -68,7 +148,7 @@ export default function CreateDemand() {
     communication: "bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400",
   };
 
-  if (step === "review" && analysis) {
+  if (step === "edit-tasks") {
     return (
       <div className="min-h-screen bg-background">
         <div className="container max-w-4xl mx-auto px-4 py-8">
@@ -79,79 +159,221 @@ export default function CreateDemand() {
             data-testid="button-back"
           >
             <ArrowLeft className="w-4 h-4 mr-2" />
-            Back to Edit
+            Back to Edit Demand
           </Button>
 
-          <Card>
+          <Card className="mb-6">
             <CardHeader>
-              <CardTitle>AI Analysis Result</CardTitle>
-              <CardDescription>{analysis.projectSummary}</CardDescription>
+              <CardTitle>Edit Tasks</CardTitle>
+              <CardDescription>Review and modify tasks before publishing your project</CardDescription>
             </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="p-4 bg-muted rounded-lg">
+            <CardContent>
+              <div className="p-4 bg-muted rounded-lg mb-4">
                 <div className="flex items-center justify-between">
-                  <span className="text-sm text-muted-foreground">Total Budget Estimate</span>
-                  <span className="text-2xl font-bold">{analysis.totalBudget}</span>
+                  <span className="text-sm text-muted-foreground">Total Budget</span>
+                  <span className="text-2xl font-bold">${totalBudget.toFixed(2)}</span>
                 </div>
               </div>
 
               <div className="space-y-4">
-                <h3 className="font-semibold text-lg">Task Breakdown ({analysis.tasks.length} tasks)</h3>
-                {analysis.tasks.map((task, index) => (
-                  <Card key={index} className="border-l-4 border-l-primary">
+                {tasks.map((task, index) => (
+                  <Card key={index} className="border-2">
                     <CardHeader>
-                      <div className="flex items-start justify-between">
+                      <div className="flex items-start justify-between gap-2">
                         <div className="flex-1">
-                          <CardTitle className="text-base">{task.title}</CardTitle>
-                          <CardDescription className="mt-1">{task.description}</CardDescription>
+                          {editingIndex === index ? (
+                            <Input
+                              value={task.title}
+                              onChange={(e) => handleUpdateTask(index, "title", e.target.value)}
+                              placeholder="Task title"
+                              className="mb-2"
+                              data-testid={`input-task-title-${index}`}
+                            />
+                          ) : (
+                            <CardTitle className="text-base">{task.title || "Untitled Task"}</CardTitle>
+                          )}
                         </div>
-                        <Badge variant="secondary">{task.difficulty}</Badge>
+                        <div className="flex gap-1">
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            onClick={() => setEditingIndex(editingIndex === index ? null : index)}
+                            data-testid={`button-edit-${index}`}
+                          >
+                            {editingIndex === index ? <Save className="w-4 h-4" /> : <Edit2 className="w-4 h-4" />}
+                          </Button>
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            onClick={() => handleDeleteTask(index)}
+                            data-testid={`button-delete-${index}`}
+                          >
+                            <Trash2 className="w-4 h-4 text-destructive" />
+                          </Button>
+                        </div>
                       </div>
                     </CardHeader>
-                    <CardContent>
-                      <div className="grid grid-cols-2 gap-4 text-sm">
-                        <div>
-                          <span className="text-muted-foreground">Estimated Time:</span>
-                          <span className="ml-2 font-medium">{task.estimatedTime}</span>
-                        </div>
-                        <div>
-                          <span className="text-muted-foreground">Budget:</span>
-                          <span className="ml-2 font-medium">{task.budget}</span>
-                        </div>
-                      </div>
-                      <div className="mt-3 flex flex-wrap gap-2">
-                        {task.skills.map((skill) => (
-                          <Badge
-                            key={skill}
-                            variant="outline"
-                            className={skillColors[skill] || ""}
-                          >
-                            {skill}
-                          </Badge>
-                        ))}
-                      </div>
+                    <CardContent className="space-y-4">
+                      {editingIndex === index ? (
+                        <>
+                          <div>
+                            <Label>Description</Label>
+                            <Textarea
+                              value={task.description}
+                              onChange={(e) => handleUpdateTask(index, "description", e.target.value)}
+                              placeholder="Task description"
+                              className="mt-1"
+                              data-testid={`input-task-description-${index}`}
+                            />
+                          </div>
+
+                          <div className="grid grid-cols-2 gap-4">
+                            <div>
+                              <Label>Estimated Time</Label>
+                              <Input
+                                value={task.estimatedTime}
+                                onChange={(e) => handleUpdateTask(index, "estimatedTime", e.target.value)}
+                                placeholder="e.g., 2 hours"
+                                className="mt-1"
+                                data-testid={`input-task-time-${index}`}
+                              />
+                            </div>
+                            <div>
+                              <Label>Budget ($)</Label>
+                              <Input
+                                type="number"
+                                value={task.budget}
+                                onChange={(e) => handleUpdateTask(index, "budget", parseFloat(e.target.value) || 0)}
+                                placeholder="100"
+                                className="mt-1"
+                                data-testid={`input-task-budget-${index}`}
+                              />
+                            </div>
+                          </div>
+
+                          <div>
+                            <Label>Difficulty</Label>
+                            <Select
+                              value={task.difficulty}
+                              onValueChange={(value) => handleUpdateTask(index, "difficulty", value)}
+                            >
+                              <SelectTrigger className="mt-1" data-testid={`select-task-difficulty-${index}`}>
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="easy">Easy</SelectItem>
+                                <SelectItem value="medium">Medium</SelectItem>
+                                <SelectItem value="hard">Hard</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+
+                          <div>
+                            <Label>Skills</Label>
+                            <div className="flex gap-2 mt-1">
+                              <Input
+                                value={skillInput}
+                                onChange={(e) => setSkillInput(e.target.value)}
+                                placeholder="Add a skill"
+                                onKeyPress={(e) => {
+                                  if (e.key === "Enter") {
+                                    e.preventDefault();
+                                    handleAddSkill(index);
+                                  }
+                                }}
+                                data-testid={`input-add-skill-${index}`}
+                              />
+                              <Button
+                                size="icon"
+                                onClick={() => handleAddSkill(index)}
+                                data-testid={`button-add-skill-${index}`}
+                              >
+                                <Plus className="w-4 h-4" />
+                              </Button>
+                            </div>
+                            <div className="flex flex-wrap gap-2 mt-2">
+                              {task.skills.map((skill, skillIndex) => (
+                                <Badge
+                                  key={skillIndex}
+                                  variant="outline"
+                                  className={`${skillColors[skill] || ""} cursor-pointer`}
+                                  onClick={() => handleRemoveSkill(index, skillIndex)}
+                                  data-testid={`badge-skill-${index}-${skillIndex}`}
+                                >
+                                  {skill} ×
+                                </Badge>
+                              ))}
+                            </div>
+                          </div>
+                        </>
+                      ) : (
+                        <>
+                          <p className="text-sm text-muted-foreground">{task.description || "No description"}</p>
+                          <div className="grid grid-cols-2 gap-4 text-sm">
+                            <div>
+                              <span className="text-muted-foreground">Estimated Time:</span>
+                              <span className="ml-2 font-medium">{task.estimatedTime}</span>
+                            </div>
+                            <div>
+                              <span className="text-muted-foreground">Budget:</span>
+                              <span className="ml-2 font-medium">${task.budget}</span>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Badge variant="secondary">{task.difficulty}</Badge>
+                            {task.skills.map((skill, skillIndex) => (
+                              <Badge
+                                key={skillIndex}
+                                variant="outline"
+                                className={skillColors[skill] || ""}
+                              >
+                                {skill}
+                              </Badge>
+                            ))}
+                          </div>
+                        </>
+                      )}
                     </CardContent>
                   </Card>
                 ))}
               </div>
 
-              <div className="flex gap-3">
+              <Button
+                variant="outline"
+                onClick={handleAddTask}
+                className="w-full mt-4"
+                data-testid="button-add-task"
+              >
+                <Plus className="w-4 h-4 mr-2" />
+                Add Another Task
+              </Button>
+
+              <div className="flex gap-3 mt-6">
                 <Button
-                  onClick={handleCreate}
+                  onClick={handlePublish}
                   className="flex-1"
-                  disabled={createMutation.isPending}
-                  data-testid="button-create-project"
+                  disabled={isPublishDisabled || createMutation.isPending}
+                  data-testid="button-publish"
                 >
-                  {createMutation.isPending ? "Creating Project..." : "Create Project"}
+                  {createMutation.isPending ? "Publishing..." : "Publish Project"}
                 </Button>
                 <Button
                   variant="outline"
                   onClick={() => setStep("input")}
-                  data-testid="button-modify"
+                  data-testid="button-cancel"
                 >
-                  Modify Demand
+                  Cancel
                 </Button>
               </div>
+
+              {createMutation.isError && (
+                <Alert variant="destructive" className="mt-4">
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertDescription>
+                    Failed to create project. Please try again.
+                  </AlertDescription>
+                </Alert>
+              )}
             </CardContent>
           </Card>
         </div>
@@ -179,7 +401,7 @@ export default function CreateDemand() {
               <CardTitle className="text-2xl">Create New Demand</CardTitle>
             </div>
             <CardDescription>
-              Describe your demand in natural language, and let AI break it down into manageable tasks
+              Describe your demand in natural language, then choose to use AI breakdown or create tasks manually
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -209,60 +431,68 @@ export default function CreateDemand() {
               <Alert variant="destructive">
                 <AlertCircle className="h-4 w-4" />
                 <AlertDescription>
-                  Failed to analyze demand. Please try again or contact support if the issue persists.
+                  Failed to analyze demand. Please try again or create tasks manually.
                 </AlertDescription>
               </Alert>
             )}
 
-            <Button
-              onClick={handleAnalyze}
-              disabled={demand.trim().length < 10 || analyzeMutation.isPending}
-              className="w-full"
-              data-testid="button-analyze"
-            >
-              {analyzeMutation.isPending ? (
-                <>
-                  <Sparkles className="w-4 h-4 mr-2 animate-spin" />
-                  Analyzing with AI...
-                </>
-              ) : (
-                <>
-                  <Sparkles className="w-4 h-4 mr-2" />
-                  Analyze with AI
-                </>
-              )}
-            </Button>
+            <div className="grid grid-cols-2 gap-3">
+              <Button
+                onClick={handleAnalyzeWithAI}
+                disabled={demand.trim().length < 10 || analyzeMutation.isPending}
+                className="w-full"
+                data-testid="button-analyze"
+              >
+                {analyzeMutation.isPending ? (
+                  <>
+                    <Sparkles className="w-4 h-4 mr-2 animate-spin" />
+                    Analyzing...
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="w-4 h-4 mr-2" />
+                    AI Breakdown
+                  </>
+                )}
+              </Button>
+              <Button
+                variant="outline"
+                onClick={handleSkipAI}
+                disabled={demand.trim().length < 10}
+                data-testid="button-skip-ai"
+              >
+                Manual Create
+              </Button>
+            </div>
           </CardContent>
         </Card>
 
         <Card className="mt-6">
           <CardHeader>
-            <CardTitle className="text-lg">How It Works</CardTitle>
+            <CardTitle className="text-lg">Two Ways to Create</CardTitle>
           </CardHeader>
-          <CardContent className="space-y-3 text-sm text-muted-foreground">
-            <div className="flex gap-3">
-              <div className="w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center text-primary font-semibold text-xs flex-shrink-0">
-                1
+          <CardContent className="space-y-4">
+            <div className="p-4 border rounded-lg">
+              <div className="flex items-start gap-3">
+                <Sparkles className="w-5 h-5 text-primary flex-shrink-0 mt-0.5" />
+                <div>
+                  <h4 className="font-semibold mb-1">AI Breakdown (Recommended)</h4>
+                  <p className="text-sm text-muted-foreground">
+                    Let AI analyze your demand and automatically break it down into optimized micro-tasks with budget estimates, skill requirements, and time estimates. You can edit all tasks before publishing.
+                  </p>
+                </div>
               </div>
-              <p>Describe your demand in natural language</p>
             </div>
-            <div className="flex gap-3">
-              <div className="w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center text-primary font-semibold text-xs flex-shrink-0">
-                2
+            <div className="p-4 border rounded-lg">
+              <div className="flex items-start gap-3">
+                <Edit2 className="w-5 h-5 text-primary flex-shrink-0 mt-0.5" />
+                <div>
+                  <h4 className="font-semibold mb-1">Manual Create</h4>
+                  <p className="text-sm text-muted-foreground">
+                    For small or simple tasks, skip AI and create your tasks manually with full control over every detail.
+                  </p>
+                </div>
               </div>
-              <p>AI analyzes and breaks down into micro-tasks with required skills</p>
-            </div>
-            <div className="flex gap-3">
-              <div className="w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center text-primary font-semibold text-xs flex-shrink-0">
-                3
-              </div>
-              <p>Tasks are matched with performers based on their potential profiles</p>
-            </div>
-            <div className="flex gap-3">
-              <div className="w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center text-primary font-semibold text-xs flex-shrink-0">
-                4
-              </div>
-              <p>Track progress and manage your project</p>
             </div>
           </CardContent>
         </Card>
