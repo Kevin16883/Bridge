@@ -31,13 +31,14 @@ interface ProjectDetailResponse {
   tasks: Task[];
 }
 
-export default function ProjectDetail({ params }: { params: { id: string } }) {
-  const [, setLocation] = useLocation();
+export default function ProjectDetail() {
+  const [location, setLocation] = useLocation();
+  const projectId = location.split("/")[2]; // Extract ID from /projects/:id
   
-  const { data, isLoading, error } = useQuery<ProjectDetailResponse>({
-    queryKey: ["/api/projects", params.id],
+  const { data, isLoading, error} = useQuery<ProjectDetailResponse>({
+    queryKey: ["/api/projects", projectId],
     queryFn: async () => {
-      const response = await fetch(`/api/projects/${params.id}`, {
+      const response = await fetch(`/api/projects/${projectId}`, {
         credentials: "include",
       });
       if (!response.ok) {
