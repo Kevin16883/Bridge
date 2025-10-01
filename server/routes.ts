@@ -3,7 +3,7 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { setupAuth } from "./auth";
 import { analyzeAndBreakdownDemand } from "./ai";
-import { insertProjectSchema, insertTaskSchema } from "@shared/schema";
+import { insertProjectSchema, insertTaskSchema, insertTaskSubmissionSchema } from "@shared/schema";
 import { z } from "zod";
 
 function requireAuth(req: any, res: any, next: any) {
@@ -212,6 +212,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get specific task (performer only, must be assigned)
+  app.get("/api/tasks/:id", requirePerformer, async (req, res, next) => {
+    try {
+      const task = await storage.getTask(req.params.id);
+      
+      if (!task) {
+        return res.status(404).json({ error: "Task not found" });
+      }
+
+      // Check if performer is assigned to this task
+      if (task.matchedPerformerId !== req.user!.id) {
+        return res.status(403).json({ error: "You are not assigned to this task" });
+      }
+
+      res.json(task);
+    } catch (error) {
+      next(error);
+    }
+  });
+
   // Get all badge definitions (available to all authenticated users)
   app.get("/api/badges", requireAuth, async (req, res, next) => {
     try {
@@ -227,6 +247,110 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userBadges = await storage.getUserBadges(req.user!.id);
       res.json(userBadges);
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  // Submit work for a task (performer only)
+  app.post("/api/tasks/:id/submit", requirePerformer, async (req, res, next) => {
+    try {
+      const taskId = req.params.id;
+      const task = await storage.getTask(taskId);
+      
+      if (!task) {
+        return res.status(404).json({ error: "Task not found" });
+      }
+
+      // Check if performer is assigned to this task
+      if (task.matchedPerformerId !== req.user!.id) {
+        return res.status(403).json({ error: "You are not assigned to this task" });
+      }
+
+      const submissionData = insertTaskSubmissionSchema.parse({
+        ...req.body,
+        taskId,
+        performerId: req.user!.id,
+        status: "submitted",
+      });
+
+      const submission = await storage.createTaskSubmission(submissionData);
+      
+      // Update task status to in_progress if not already
+      if (task.status === "matched") {
+        await storage.updateTaskStatus(taskId, "in_progress");
+      }
+
+      res.json(submission);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ error: error.errors[0].message });
+      }
+      next(error);
+    }
+  });
+
+  // Get all submissions for a task (provider or assigned performer)
+  app.get("/api/tasks/:id/submissions", requireAuth, async (req, res, next) => {
+    try {
+      const taskId = req.params.id;
+      const task = await storage.getTask(taskId);
+      
+      if (!task) {
+        return res.status(404).json({ error: "Task not found" });
+      }
+
+      // Allow access for providers (own project) or assigned performers
+      if (req.user!.role === "provider") {
+        const project = await storage.getProject(task.projectId);
+        if (!project || project.providerId !== req.user!.id) {
+          return res.status(403).json({ error: "Access denied" });
+        }
+      } else if (req.user!.role === "performer") {
+        if (task.matchedPerformerId !== req.user!.id) {
+          return res.status(403).json({ error: "You are not assigned to this task" });
+        }
+      }
+
+      const submissions = await storage.getSubmissionsByTask(taskId);
+      res.json(submissions);
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  // Get performer's submissions (performer only)
+  app.get("/api/performer/submissions", requirePerformer, async (req, res, next) => {
+    try {
+      const submissions = await storage.getSubmissionsByPerformer(req.user!.id);
+      res.json(submissions);
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  // Get performer's assigned tasks with latest submission (performer only)
+  app.get("/api/performer/my-tasks", requirePerformer, async (req, res, next) => {
+    try {
+      const tasks = await storage.getTasksByPerformer(req.user!.id);
+      const submissions = await storage.getSubmissionsByPerformer(req.user!.id);
+      
+      // Create a map of taskId to latest submission
+      const submissionMap = new Map();
+      submissions.forEach(sub => {
+        if (!submissionMap.has(sub.taskId) || 
+            new Date(sub.submittedAt) > new Date(submissionMap.get(sub.taskId).submittedAt)) {
+          submissionMap.set(sub.taskId, sub);
+        }
+      });
+
+      // Attach latest submission to each task
+      const tasksWithSubmissions = tasks.map(task => ({
+        ...task,
+        latestSubmission: submissionMap.get(task.id),
+      }));
+
+      res.json(tasksWithSubmissions);
     } catch (error) {
       next(error);
     }

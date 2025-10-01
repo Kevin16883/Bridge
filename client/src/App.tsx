@@ -13,6 +13,7 @@ import ProviderDashboard from "@/pages/provider-dashboard-real";
 import PerformerDashboard from "@/pages/performer-dashboard";
 import CreateDemand from "@/pages/create-demand";
 import ProjectDetail from "@/pages/project-detail";
+import TaskDetail from "@/pages/task-detail";
 
 function Router() {
   return (
@@ -23,6 +24,7 @@ function Router() {
       <ProtectedRoute path="/performer-dashboard" component={PerformerDashboard} />
       <ProtectedRoute path="/create-demand" component={CreateDemand} />
       <ProtectedRoute path="/projects/:id" component={ProjectDetail} />
+      <ProtectedRoute path="/tasks/:id" component={TaskDetail} />
       <Route component={NotFound} />
     </Switch>
   );
