@@ -212,8 +212,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Get specific task (performer only, must be assigned)
-  app.get("/api/tasks/:id", requirePerformer, async (req, res, next) => {
+  // Get specific task (provider or assigned performer)
+  app.get("/api/tasks/:id", requireAuth, async (req, res, next) => {
     try {
       const task = await storage.getTask(req.params.id);
       
@@ -221,9 +221,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ error: "Task not found" });
       }
 
-      // Check if performer is assigned to this task
-      if (task.matchedPerformerId !== req.user!.id) {
-        return res.status(403).json({ error: "You are not assigned to this task" });
+      // Allow access for providers (own project) or assigned performers
+      if (req.user!.role === "provider") {
+        const project = await storage.getProject(task.projectId);
+        if (!project || project.providerId !== req.user!.id) {
+          return res.status(403).json({ error: "Access denied" });
+        }
+      } else if (req.user!.role === "performer") {
+        if (task.matchedPerformerId !== req.user!.id) {
+          return res.status(403).json({ error: "You are not assigned to this task" });
+        }
       }
 
       res.json(task);
@@ -325,6 +332,59 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const submissions = await storage.getSubmissionsByPerformer(req.user!.id);
       res.json(submissions);
     } catch (error) {
+      next(error);
+    }
+  });
+
+  // Review a submission (provider only, own project tasks)
+  app.post("/api/submissions/:id/review", requireProvider, async (req, res, next) => {
+    try {
+      const submissionId = req.params.id;
+      const reviewSchema = z.object({
+        status: z.enum(["approved", "rejected", "revision_requested"]),
+        feedback: z.string().optional(),
+      }).refine(data => {
+        // Require feedback for rejected and revision_requested statuses
+        if ((data.status === "rejected" || data.status === "revision_requested") && !data.feedback?.trim()) {
+          return false;
+        }
+        return true;
+      }, {
+        message: "Feedback is required for rejected and revision_requested statuses",
+        path: ["feedback"],
+      });
+      
+      const { status, feedback } = reviewSchema.parse(req.body);
+
+      const submission = await storage.getTaskSubmission(submissionId);
+      if (!submission) {
+        return res.status(404).json({ error: "Submission not found" });
+      }
+
+      // Verify the task belongs to provider's project
+      const task = await storage.getTask(submission.taskId);
+      if (!task) {
+        return res.status(404).json({ error: "Task not found" });
+      }
+
+      const project = await storage.getProject(task.projectId);
+      if (!project || project.providerId !== req.user!.id) {
+        return res.status(403).json({ error: "Access denied" });
+      }
+
+      // Update submission status
+      await storage.updateSubmissionStatus(submissionId, status, feedback);
+
+      // If approved, update task status to completed
+      if (status === "approved") {
+        await storage.updateTaskStatus(task.id, "completed");
+      }
+
+      res.json({ success: true });
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ error: error.errors[0].message });
+      }
       next(error);
     }
   });

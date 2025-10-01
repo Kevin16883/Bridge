@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
-import { useLocation } from "wouter";
-import { ArrowLeft, Clock, DollarSign, CheckCircle2, AlertCircle } from "lucide-react";
+import { useLocation, Link } from "wouter";
+import { ArrowLeft, Clock, DollarSign, CheckCircle2, AlertCircle, FileText } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -33,7 +33,7 @@ interface ProjectDetailResponse {
 
 export default function ProjectDetail() {
   const [location, setLocation] = useLocation();
-  const projectId = location.split("/")[2]; // Extract ID from /projects/:id
+  const projectId = location.split("/")[2]; // Extract ID from /projects/:projectId
   
   const { data, isLoading, error} = useQuery<ProjectDetailResponse>({
     queryKey: ["/api/projects", projectId],
@@ -204,7 +204,7 @@ export default function ProjectDetail() {
                           <span className="ml-2 font-medium">{task.budget}</span>
                         </div>
                       </div>
-                      <div className="flex flex-wrap gap-2">
+                      <div className="flex flex-wrap gap-2 mb-4">
                         {task.skills.map((skill) => (
                           <Badge
                             key={skill}
@@ -215,6 +215,19 @@ export default function ProjectDetail() {
                           </Badge>
                         ))}
                       </div>
+                      {(task.status === "in_progress" || task.status === "completed") && (
+                        <Button 
+                          variant="outline" 
+                          className="w-full" 
+                          asChild
+                          data-testid={`button-view-submissions-${task.id}`}
+                        >
+                          <Link href={`/projects/${projectId}/tasks/${task.id}/submissions`}>
+                            <FileText className="w-4 h-4 mr-2" />
+                            View Submissions
+                          </Link>
+                        </Button>
+                      )}
                     </CardContent>
                   </Card>
                 );
