@@ -14,10 +14,10 @@ export function PotentialRadar({ data, overall }: PotentialRadarProps) {
     <Card data-testid="card-potential-radar">
       <CardHeader>
         <CardTitle className="flex items-center justify-between">
-          <span>潜力图谱</span>
+          <span>Potential Profile</span>
           {overall !== undefined && (
             <div className="text-right">
-              <div className="text-sm text-muted-foreground">综合评分</div>
+              <div className="text-sm text-muted-foreground">Overall Score</div>
               <div className="text-3xl font-bold text-primary font-mono">{overall}</div>
             </div>
           )}

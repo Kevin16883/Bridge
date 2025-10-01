@@ -15,9 +15,9 @@ export default function Home() {
       <section className="py-24">
         <div className="container px-4">
           <div className="text-center mb-16">
-            <h2 className="text-4xl font-bold mb-4">选择你的角色</h2>
+            <h2 className="text-4xl font-bold mb-4">Choose Your Role</h2>
             <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-              无论你是需求方还是任务执行者，Bridge都能为你创造价值
+              Whether you're a demand provider or task performer, Bridge creates value for you
             </p>
           </div>
           
@@ -27,28 +27,28 @@ export default function Home() {
                 <div className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center mb-4">
                   <Target className="h-6 w-6 text-primary" />
                 </div>
-                <CardTitle className="text-2xl">需求方</CardTitle>
+                <CardTitle className="text-2xl">Demand Provider</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
                 <p className="text-muted-foreground">
-                  用一句话描述你的需求，AI帮你拆解任务，精准匹配最合适的人才
+                  Describe your demand in one sentence, AI helps break down tasks and precisely match the most suitable talent
                 </p>
                 <ul className="space-y-2 text-sm">
                   <li className="flex items-center gap-2">
                     <div className="w-1.5 h-1.5 rounded-full bg-primary" />
-                    <span>自然语言描述需求</span>
+                    <span>Natural language demand description</span>
                   </li>
                   <li className="flex items-center gap-2">
                     <div className="w-1.5 h-1.5 rounded-full bg-primary" />
-                    <span>AI智能任务拆解</span>
+                    <span>AI smart task breakdown</span>
                   </li>
                   <li className="flex items-center gap-2">
                     <div className="w-1.5 h-1.5 rounded-full bg-primary" />
-                    <span>精准人才匹配</span>
+                    <span>Precise talent matching</span>
                   </li>
                 </ul>
                 <Button className="w-full" data-testid="button-start-as-provider">
-                  发布需求
+                  Post Demand
                   <ArrowRight className="ml-2 h-4 w-4" />
                 </Button>
               </CardContent>
@@ -59,28 +59,28 @@ export default function Home() {
                 <div className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center mb-4">
                   <TrendingUp className="h-6 w-6 text-primary" />
                 </div>
-                <CardTitle className="text-2xl">任务执行者</CardTitle>
+                <CardTitle className="text-2xl">Task Performer</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
                 <p className="text-muted-foreground">
-                  完成能力挑战，构建潜力图谱，接收精准匹配的任务机会
+                  Complete capability challenges, build potential profile, receive precisely matched task opportunities
                 </p>
                 <ul className="space-y-2 text-sm">
                   <li className="flex items-center gap-2">
                     <div className="w-1.5 h-1.5 rounded-full bg-primary" />
-                    <span>完成能力挑战</span>
+                    <span>Complete capability challenges</span>
                   </li>
                   <li className="flex items-center gap-2">
                     <div className="w-1.5 h-1.5 rounded-full bg-primary" />
-                    <span>构建潜力图谱</span>
+                    <span>Build potential profile</span>
                   </li>
                   <li className="flex items-center gap-2">
                     <div className="w-1.5 h-1.5 rounded-full bg-primary" />
-                    <span>接收匹配任务</span>
+                    <span>Receive matched tasks</span>
                   </li>
                 </ul>
                 <Button className="w-full" data-testid="button-start-as-performer">
-                  开始挑战
+                  Start Challenge
                   <ArrowRight className="ml-2 h-4 w-4" />
                 </Button>
               </CardContent>
@@ -99,7 +99,7 @@ export default function Home() {
               <span className="font-bold">Bridge</span>
             </div>
             <p className="text-sm text-muted-foreground">
-              © 2025 Bridge. 将需求转化为机会，将潜力转化为价值
+              © 2025 Bridge. Transform demands into opportunities, transform potential into value
             </p>
           </div>
         </div>

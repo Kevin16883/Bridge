@@ -22,12 +22,12 @@ export function DemandInput() {
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <Sparkles className="h-5 w-5 text-primary" />
-          描述你的需求
+          Describe Your Demand
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
         <Textarea
-          placeholder="例如：我想为我的新款环保咖啡杯做一波小红书推广..."
+          placeholder="e.g., I want to promote my new eco-friendly coffee cup on social media..."
           value={demand}
           onChange={(e) => setDemand(e.target.value)}
           className="min-h-[120px] text-base resize-none"
@@ -35,7 +35,7 @@ export function DemandInput() {
         />
         <div className="flex items-center justify-between">
           <p className="text-sm text-muted-foreground">
-            用自然语言描述，AI会帮你拆解成具体任务
+            Describe in natural language, AI will break it down into specific tasks
           </p>
           <Button 
             onClick={handleAnalyze}
@@ -45,12 +45,12 @@ export function DemandInput() {
             {isAnalyzing ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                分析中...
+                Analyzing...
               </>
             ) : (
               <>
                 <Sparkles className="mr-2 h-4 w-4" />
-                AI解析
+                AI Analyze
               </>
             )}
           </Button>

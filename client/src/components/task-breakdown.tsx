@@ -18,24 +18,24 @@ interface TaskBreakdownProps {
 }
 
 const statusConfig = {
-  pending: { color: "bg-muted text-muted-foreground", label: "待匹配" },
-  matched: { color: "bg-primary/10 text-primary border-primary/30", label: "已匹配" },
-  completed: { color: "bg-green-500/10 text-green-700 dark:text-green-400 border-green-500/20", label: "已完成" },
+  pending: { color: "bg-muted text-muted-foreground", label: "Pending" },
+  matched: { color: "bg-primary/10 text-primary border-primary/30", label: "Matched" },
+  completed: { color: "bg-green-500/10 text-green-700 dark:text-green-400 border-green-500/20", label: "Completed" },
 };
 
 export function TaskBreakdown({ originalDemand, tasks }: TaskBreakdownProps) {
   return (
     <Card data-testid="card-task-breakdown">
       <CardHeader>
-        <CardTitle>AI解析结果</CardTitle>
+        <CardTitle>AI Analysis Result</CardTitle>
         <div className="p-3 rounded-lg bg-muted/50 border mt-2">
-          <p className="text-sm text-muted-foreground mb-1">原始需求</p>
+          <p className="text-sm text-muted-foreground mb-1">Original Demand</p>
           <p className="text-sm">{originalDemand}</p>
         </div>
       </CardHeader>
       <CardContent className="space-y-3">
         <div className="text-sm font-medium text-muted-foreground mb-2">
-          已拆解为 {tasks.length} 个微任务
+          Decomposed into {tasks.length} micro-tasks
         </div>
         
         <div className="space-y-3">
@@ -79,7 +79,7 @@ export function TaskBreakdown({ originalDemand, tasks }: TaskBreakdownProps) {
                     </Badge>
                   )}
                   <Button size="sm" variant="ghost" data-testid={`button-task-detail-${index}`}>
-                    详情
+                    Detail
                     <ChevronRight className="h-4 w-4 ml-1" />
                   </Button>
                 </div>
@@ -91,11 +91,11 @@ export function TaskBreakdown({ originalDemand, tasks }: TaskBreakdownProps) {
         <div className="pt-4 border-t">
           <div className="flex items-center justify-between">
             <div>
-              <div className="text-sm text-muted-foreground">预估总预算</div>
-              <div className="text-2xl font-bold">¥1,200 - 2,000</div>
+              <div className="text-sm text-muted-foreground">Estimated Total Budget</div>
+              <div className="text-2xl font-bold">$200 - 330</div>
             </div>
             <Button size="lg" data-testid="button-publish-project">
-              发布项目
+              Publish Project
             </Button>
           </div>
         </div>
