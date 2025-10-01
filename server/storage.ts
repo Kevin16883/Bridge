@@ -51,7 +51,7 @@ export interface IStorage {
   getBadge(id: string): Promise<Badge | undefined>;
   
   // User badge operations
-  awardBadge(userBadge: InsertUserBadge): Promise<UserBadge>;
+  awardBadge(userBadge: InsertUserBadge): Promise<UserBadge | null>;
   getUserBadges(userId: string): Promise<Array<UserBadge & { badge: Badge }>>;
   
   // Task application operations
@@ -186,9 +186,14 @@ export class DatabaseStorage implements IStorage {
   }
 
   // User badge operations
-  async awardBadge(insertUserBadge: InsertUserBadge): Promise<UserBadge> {
-    const [userBadge] = await db.insert(userBadges).values(insertUserBadge).returning();
-    return userBadge;
+  async awardBadge(insertUserBadge: InsertUserBadge): Promise<UserBadge | null> {
+    // Use onConflictDoNothing to make this idempotent (unique constraint on userId, badgeId)
+    const [userBadge] = await db
+      .insert(userBadges)
+      .values(insertUserBadge)
+      .onConflictDoNothing()
+      .returning();
+    return userBadge || null;
   }
 
   async getUserBadges(userId: string): Promise<Array<UserBadge & { badge: Badge }>> {

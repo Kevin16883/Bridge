@@ -107,7 +107,9 @@ export const userBadges = pgTable("user_badges", {
   badgeId: varchar("badge_id").notNull().references(() => badges.id),
   taskId: varchar("task_id").references(() => tasks.id),
   earnedAt: timestamp("earned_at").defaultNow().notNull(),
-});
+}, (table) => ({
+  uniqueUserBadge: sql`UNIQUE (${table.userId}, ${table.badgeId})`,
+}));
 
 export const insertUserBadgeSchema = createInsertSchema(userBadges).omit({
   id: true,

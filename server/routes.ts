@@ -372,12 +372,79 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ error: "Access denied" });
       }
 
+      // Only award badges if transitioning from non-approved to approved
+      const wasAlreadyApproved = submission.status === "approved";
+      
       // Update submission status
       await storage.updateSubmissionStatus(submissionId, status, feedback);
 
-      // If approved, update task status to completed
-      if (status === "approved") {
+      // If approved for the first time, update task status to completed and award badges
+      if (status === "approved" && !wasAlreadyApproved) {
         await storage.updateTaskStatus(task.id, "completed");
+        
+        // Award badges to performer
+        const performerId = submission.performerId;
+        
+        // Get performer's existing badges (fetch once for efficiency)
+        const existingBadges = await storage.getUserBadges(performerId);
+        const existingBadgeIds = new Set(existingBadges.map(ub => ub.badgeId));
+        
+        // Get performer's completed tasks count
+        const performerTasks = await storage.getTasksByPerformer(performerId);
+        const completedTasksCount = performerTasks.filter(t => t.status === "completed").length;
+        
+        // Award completion badges based on milestones (backfill missed milestones)
+        const completionBadges = [
+          { count: 1, badgeId: "badge-first-task" },
+          { count: 5, badgeId: "badge-5-tasks" },
+          { count: 10, badgeId: "badge-10-tasks" },
+          { count: 25, badgeId: "badge-25-tasks" },
+        ];
+        
+        for (const milestone of completionBadges) {
+          if (completedTasksCount >= milestone.count && !existingBadgeIds.has(milestone.badgeId)) {
+            await storage.awardBadge({
+              userId: performerId,
+              badgeId: milestone.badgeId,
+              taskId: task.id,
+            });
+            // Add to set to prevent duplicate awards in same request
+            existingBadgeIds.add(milestone.badgeId);
+          }
+        }
+        
+        // Award specialty badges based on task skills
+        const skillBadgeMap: Record<string, string> = {
+          "Content Writing": "badge-content-creator",
+          "Copywriting": "badge-content-creator",
+          "Data Analysis": "badge-data-wizard",
+          "Data Visualization": "badge-data-wizard",
+          "UI/UX Design": "badge-design-specialist",
+          "Graphic Design": "badge-design-specialist",
+          "Web Development": "badge-tech-guru",
+          "Backend Development": "badge-tech-guru",
+          "API Integration": "badge-tech-guru",
+        };
+        
+        // Check if performer has completed 3+ tasks with specific skills to earn specialty badge
+        for (const skill of task.skills) {
+          const badgeId = skillBadgeMap[skill];
+          if (badgeId && !existingBadgeIds.has(badgeId)) {
+            const tasksWithSkill = performerTasks.filter(t => 
+              t.status === "completed" && t.skills.includes(skill)
+            );
+            
+            if (tasksWithSkill.length >= 3) {
+              await storage.awardBadge({
+                userId: performerId,
+                badgeId: badgeId,
+                taskId: task.id,
+              });
+              // Add to set to prevent duplicate awards in same request
+              existingBadgeIds.add(badgeId);
+            }
+          }
+        }
       }
 
       res.json({ success: true });
