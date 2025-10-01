@@ -217,8 +217,8 @@ export default function PerformerDashboard() {
               <p className="text-muted-foreground mb-4">
                 Browse available tasks and start applying
               </p>
-              <Button variant="default" data-testid="button-browse-tasks">
-                Browse Tasks
+              <Button variant="default" asChild data-testid="button-browse-tasks">
+                <Link href="/tasks">Browse Tasks</Link>
               </Button>
             </CardContent>
           </Card>

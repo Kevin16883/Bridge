@@ -494,9 +494,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const tasks = await Promise.all(taskIds.map(id => storage.getTask(id)));
       
       const totalEarnings = tasks.reduce((sum, task) => {
-        if (task && task.budget) {
-          // Extract number from budget string (e.g., "$100" -> 100)
-          const amount = parseFloat(task.budget.replace(/[^0-9.]/g, '')) || 0;
+        if (task?.budget) {
+          // Handle both number and string budget formats
+          const amount = typeof task.budget === "number" 
+            ? task.budget 
+            : parseFloat(String(task.budget).replace(/[^0-9.]/g, '')) || 0;
           return sum + amount;
         }
         return sum;
