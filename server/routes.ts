@@ -212,6 +212,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get all badge definitions (available to all authenticated users)
+  app.get("/api/badges", requireAuth, async (req, res, next) => {
+    try {
+      const badges = await storage.getAllBadges();
+      res.json(badges);
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  // Get performer's earned badges (performer only)
+  app.get("/api/performer/badges", requirePerformer, async (req, res, next) => {
+    try {
+      const userBadges = await storage.getUserBadges(req.user!.id);
+      res.json(userBadges);
+    } catch (error) {
+      next(error);
+    }
+  });
+
   // Get performer dashboard stats (performer only)
   app.get("/api/performer/stats", requirePerformer, async (req, res, next) => {
     try {
@@ -231,10 +251,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return sum;
       }, 0);
 
+      // Get user's earned badges
+      const userBadges = await storage.getUserBadges(req.user!.id);
+
       res.json({
         completedTasks: approvedSubmissions.length,
         totalEarnings: Math.round(totalEarnings),
-        totalBadges: 0, // TODO: implement when badges are counted
+        totalBadges: userBadges.length,
       });
     } catch (error) {
       next(error);
