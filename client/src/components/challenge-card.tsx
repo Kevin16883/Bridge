@@ -3,7 +3,6 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Clock, Trophy, CheckCircle2 } from "lucide-react";
 import { SkillBadge } from "./skill-badge";
-import { useLanguage } from "./language-provider";
 
 interface ChallengeCardProps {
   title: string;
@@ -17,9 +16,9 @@ interface ChallengeCardProps {
 }
 
 const difficultyConfig = {
-  easy: { color: "bg-green-500/10 text-green-700 dark:text-green-400 border-green-500/20" },
-  medium: { color: "bg-yellow-500/10 text-yellow-700 dark:text-yellow-400 border-yellow-500/20" },
-  hard: { color: "bg-red-500/10 text-red-700 dark:text-red-400 border-red-500/20" },
+  easy: { color: "bg-green-500/10 text-green-700 dark:text-green-400 border-green-500/20", label: "Easy" },
+  medium: { color: "bg-yellow-500/10 text-yellow-700 dark:text-yellow-400 border-yellow-500/20", label: "Medium" },
+  hard: { color: "bg-red-500/10 text-red-700 dark:text-red-400 border-red-500/20", label: "Hard" },
 };
 
 export function ChallengeCard({
@@ -32,7 +31,6 @@ export function ChallengeCard({
   completed = false,
   score,
 }: ChallengeCardProps) {
-  const { t } = useLanguage();
   const diffConfig = difficultyConfig[difficulty];
   
   return (
@@ -53,7 +51,7 @@ export function ChallengeCard({
         <div className="flex items-center gap-2">
           <SkillBadge type={skillType} />
           <Badge variant="outline" className={diffConfig.color}>
-            {t(`common.difficulty.${difficulty}`)}
+            {diffConfig.label}
           </Badge>
         </div>
       </CardHeader>
@@ -66,13 +64,13 @@ export function ChallengeCard({
           </div>
           <div className="flex items-center gap-1.5 text-primary font-medium">
             <Trophy className="h-4 w-4" />
-            <span>{points} {t("common.points")}</span>
+            <span>{points} Points</span>
           </div>
         </div>
         
         {completed && score !== undefined && (
           <div className="p-3 rounded-lg bg-primary/10 border border-primary/20">
-            <div className="text-sm text-muted-foreground">{t("performerDash.avgScore")}</div>
+            <div className="text-sm text-muted-foreground">Your Score</div>
             <div className="text-2xl font-bold text-primary font-mono">{score}</div>
           </div>
         )}
@@ -84,7 +82,7 @@ export function ChallengeCard({
           variant={completed ? "outline" : "default"}
           data-testid={completed ? "button-review-challenge" : "button-start-challenge"}
         >
-          {completed ? t("common.reviewing") : t("common.startChallenge")}
+          {completed ? "Review" : "Start Challenge"}
         </Button>
       </CardFooter>
     </Card>

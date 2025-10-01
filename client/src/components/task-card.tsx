@@ -3,7 +3,6 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Clock, DollarSign, TrendingUp } from "lucide-react";
 import { SkillBadge } from "./skill-badge";
-import { useLanguage } from "./language-provider";
 
 interface TaskCardProps {
   title: string;
@@ -21,6 +20,12 @@ const difficultyColors = {
   advanced: "bg-red-500/10 text-red-700 dark:text-red-400 border-red-500/20",
 };
 
+const difficultyLabels = {
+  beginner: "Beginner",
+  intermediate: "Intermediate",
+  advanced: "Advanced",
+};
+
 export function TaskCard({
   title,
   description,
@@ -30,7 +35,6 @@ export function TaskCard({
   matchScore,
   difficulty = "intermediate",
 }: TaskCardProps) {
-  const { t } = useLanguage();
   
   return (
     <Card className="hover-elevate transition-transform hover:-translate-y-1" data-testid="card-task">
@@ -40,7 +44,7 @@ export function TaskCard({
           {matchScore !== undefined && (
             <Badge variant="outline" className="bg-primary/10 text-primary border-primary/30 shrink-0">
               <TrendingUp className="h-3 w-3 mr-1" />
-              {matchScore}% {t("common.match")}
+              {matchScore}% Match
             </Badge>
           )}
         </div>
@@ -64,13 +68,13 @@ export function TaskCard({
             <span>{budget}</span>
           </div>
           <Badge variant="outline" className={difficultyColors[difficulty]}>
-            {t(`common.difficulty.${difficulty}`)}
+            {difficultyLabels[difficulty]}
           </Badge>
         </div>
       </CardContent>
       
       <CardFooter>
-        <Button className="w-full" data-testid="button-view-task">{t("common.viewDetails")}</Button>
+        <Button className="w-full" data-testid="button-view-task">View Details</Button>
       </CardFooter>
     </Card>
   );

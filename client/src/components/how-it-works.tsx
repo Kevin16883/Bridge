@@ -1,40 +1,37 @@
 import { Card, CardContent } from "@/components/ui/card";
 import { MessageSquare, Cpu, Users, CheckCircle } from "lucide-react";
-import { useLanguage } from "./language-provider";
 
 const steps = [
   {
     icon: MessageSquare,
-    titleKey: "howItWorks.step1.title",
-    descKey: "howItWorks.step1.desc",
+    title: "Natural Language Description",
+    description: "Describe your problem or goal in one sentence, no complex job descriptions needed",
   },
   {
     icon: Cpu,
-    titleKey: "howItWorks.step2.title",
-    descKey: "howItWorks.step2.desc",
+    title: "AI Smart Analysis",
+    description: "AI agent automatically breaks down demands into specific micro-tasks and estimates skill requirements",
   },
   {
     icon: Users,
-    titleKey: "howItWorks.step3.title",
-    descKey: "howItWorks.step3.desc",
+    title: "Precise Smart Matching",
+    description: "Based on potential profiles, the system automatically matches the most suitable talent",
   },
   {
     icon: CheckCircle,
-    titleKey: "howItWorks.step4.title",
-    descKey: "howItWorks.step4.desc",
+    title: "Completion & Certification",
+    description: "Receive experience credentials after task completion, continuously building your capability proof",
   },
 ];
 
 export function HowItWorks() {
-  const { t } = useLanguage();
-  
   return (
     <section className="py-24 bg-muted/30">
       <div className="container px-4">
         <div className="text-center mb-16">
-          <h2 className="text-4xl font-bold mb-4">{t("howItWorks.title")}</h2>
+          <h2 className="text-4xl font-bold mb-4">How It Works</h2>
           <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-            {t("howItWorks.subtitle")}
+            Four steps to transform demands into value
           </p>
         </div>
         
@@ -51,8 +48,8 @@ export function HowItWorks() {
                     <div className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center">
                       <Icon className="h-6 w-6 text-primary" />
                     </div>
-                    <h3 className="font-semibold text-lg">{t(step.titleKey)}</h3>
-                    <p className="text-sm text-muted-foreground">{t(step.descKey)}</p>
+                    <h3 className="font-semibold text-lg">{step.title}</h3>
+                    <p className="text-sm text-muted-foreground">{step.description}</p>
                   </div>
                 </CardContent>
               </Card>
