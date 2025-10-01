@@ -14,6 +14,7 @@ import PerformerDashboard from "@/pages/performer-dashboard";
 import CreateDemand from "@/pages/create-demand";
 import ProjectDetail from "@/pages/project-detail";
 import Challenges from "@/pages/challenges";
+import ChallengeDetail from "@/pages/challenge-detail";
 
 function Router() {
   return (
@@ -25,6 +26,7 @@ function Router() {
       <ProtectedRoute path="/create-demand" component={CreateDemand} />
       <ProtectedRoute path="/projects/:id" component={ProjectDetail} />
       <ProtectedRoute path="/challenges" component={Challenges} />
+      <ProtectedRoute path="/challenges/:id" component={ChallengeDetail} />
       <Route component={NotFound} />
     </Switch>
   );
