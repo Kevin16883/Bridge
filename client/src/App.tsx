@@ -9,16 +9,20 @@ import { ProtectedRoute } from "@/lib/protected-route";
 import NotFound from "@/pages/not-found";
 import Home from "@/pages/home";
 import AuthPage from "@/pages/auth-page";
-import ProviderDashboard from "@/pages/provider-dashboard";
+import ProviderDashboard from "@/pages/provider-dashboard-real";
 import PerformerDashboard from "@/pages/performer-dashboard";
+import CreateDemand from "@/pages/create-demand";
+import ProjectDetail from "@/pages/project-detail";
 
 function Router() {
   return (
     <Switch>
-      <ProtectedRoute path="/" component={Home} />
+      <Route path="/" component={Home} />
       <Route path="/auth" component={AuthPage} />
       <ProtectedRoute path="/provider-dashboard" component={ProviderDashboard} />
       <ProtectedRoute path="/performer-dashboard" component={PerformerDashboard} />
+      <ProtectedRoute path="/create-demand" component={CreateDemand} />
+      <ProtectedRoute path="/projects/:id" component={ProjectDetail} />
       <Route component={NotFound} />
     </Switch>
   );

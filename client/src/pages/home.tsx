@@ -4,6 +4,7 @@ import { HowItWorks } from "@/components/how-it-works";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ArrowRight, Target, TrendingUp } from "lucide-react";
+import { Link } from "wouter";
 
 export default function Home() {
   return (
@@ -47,10 +48,12 @@ export default function Home() {
                     <span>Precise talent matching</span>
                   </li>
                 </ul>
-                <Button className="w-full" data-testid="button-start-as-provider">
-                  Post Demand
-                  <ArrowRight className="ml-2 h-4 w-4" />
-                </Button>
+                <Link href="/auth">
+                  <Button className="w-full" data-testid="button-start-as-provider">
+                    Post Demand
+                    <ArrowRight className="ml-2 h-4 w-4" />
+                  </Button>
+                </Link>
               </CardContent>
             </Card>
             
@@ -79,10 +82,12 @@ export default function Home() {
                     <span>Receive matched tasks</span>
                   </li>
                 </ul>
-                <Button className="w-full" data-testid="button-start-as-performer">
-                  Start Challenge
-                  <ArrowRight className="ml-2 h-4 w-4" />
-                </Button>
+                <Link href="/auth">
+                  <Button className="w-full" data-testid="button-start-as-performer">
+                    Start Challenge
+                    <ArrowRight className="ml-2 h-4 w-4" />
+                  </Button>
+                </Link>
               </CardContent>
             </Card>
           </div>
