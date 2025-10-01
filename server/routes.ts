@@ -2,8 +2,8 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { setupAuth } from "./auth";
-import { analyzeAndBreakdownDemand, generateChallengeContent, evaluateChallengeResponse } from "./ai";
-import { insertProjectSchema, insertTaskSchema, insertChallengeSchema, insertChallengeResultSchema } from "@shared/schema";
+import { analyzeAndBreakdownDemand } from "./ai";
+import { insertProjectSchema, insertTaskSchema } from "@shared/schema";
 import { z } from "zod";
 
 function requireAuth(req: any, res: any, next: any) {
@@ -212,138 +212,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Generate challenge content
-  app.post("/api/challenges/generate", requireAuth, async (req, res, next) => {
-    try {
-      const { skillType, difficulty } = z.object({
-        skillType: z.enum(["logic", "creative", "technical", "communication"]),
-        difficulty: z.enum(["easy", "medium", "hard"]),
-      }).parse(req.body);
-
-      const challengeData = await generateChallengeContent(skillType, difficulty);
-      
-      const challenge = await storage.createChallenge({
-        title: challengeData.title,
-        description: challengeData.description,
-        skillType,
-        difficulty,
-        duration: challengeData.duration,
-        points: challengeData.points,
-        content: challengeData.content,
-      });
-
-      res.json(challenge);
-    } catch (error) {
-      if (error instanceof z.ZodError) {
-        return res.status(400).json({ error: error.errors[0].message });
-      }
-      next(error);
-    }
-  });
-
-  // Get all challenges
-  app.get("/api/challenges", requireAuth, async (req, res, next) => {
-    try {
-      const challenges = await storage.getAllChallenges();
-      res.json(challenges);
-    } catch (error) {
-      next(error);
-    }
-  });
-
-  // Submit challenge response (performer only)
-  app.post("/api/challenges/:id/submit", requirePerformer, async (req, res, next) => {
-    try {
-      const { response } = z.object({ response: z.string() }).parse(req.body);
-      const challengeId = req.params.id;
-
-      const targetChallenge = await storage.getChallenge(challengeId);
-      
-      if (!targetChallenge) {
-        return res.status(404).json({ error: "Challenge not found" });
-      }
-
-      const evaluation = await evaluateChallengeResponse(targetChallenge.content, response);
-
-      const result = await storage.createChallengeResult({
-        performerId: req.user!.id,
-        challengeId,
-        response,
-        score: evaluation.score,
-        feedback: evaluation.feedback,
-      });
-
-      // Update skill score
-      await storage.upsertSkillScore({
-        performerId: req.user!.id,
-        skillType: targetChallenge.skillType,
-        score: evaluation.score,
-      });
-
-      res.json(result);
-    } catch (error) {
-      if (error instanceof z.ZodError) {
-        return res.status(400).json({ error: error.errors[0].message });
-      }
-      next(error);
-    }
-  });
-
-  // Get performer's skill scores (performer only)
-  app.get("/api/skills", requirePerformer, async (req, res, next) => {
-    try {
-      const scores = await storage.getSkillScoresByPerformer(req.user!.id);
-      res.json(scores);
-    } catch (error) {
-      next(error);
-    }
-  });
-
-  // Get performer's challenge results (performer only)
-  app.get("/api/performer/challenge-results", requirePerformer, async (req, res, next) => {
-    try {
-      const results = await storage.getChallengeResultsByPerformer(req.user!.id);
-      res.json(results);
-    } catch (error) {
-      next(error);
-    }
-  });
-
   // Get performer dashboard stats (performer only)
   app.get("/api/performer/stats", requirePerformer, async (req, res, next) => {
     try {
-      const results = await storage.getChallengeResultsByPerformer(req.user!.id);
-      const skillScores = await storage.getSkillScoresByPerformer(req.user!.id);
-      const allChallenges = await storage.getAllChallenges();
+      const submissions = await storage.getSubmissionsByPerformer(req.user!.id);
+      const approvedSubmissions = submissions.filter(s => s.status === "approved");
       
-      // Create a map of challenge IDs to points
-      const challengePointsMap = new Map(allChallenges.map(c => [c.id, c.points]));
+      // Get tasks for approved submissions to calculate earnings
+      const taskIds = approvedSubmissions.map(s => s.taskId);
+      const tasks = await Promise.all(taskIds.map(id => storage.getTask(id)));
       
-      // Calculate total points earned (sum of challenge.points for completed challenges)
-      const totalPoints = results.reduce((sum, r) => {
-        const challengePoints = challengePointsMap.get(r.challengeId) || 0;
-        return sum + challengePoints;
+      const totalEarnings = tasks.reduce((sum, task) => {
+        if (task && task.budget) {
+          // Extract number from budget string (e.g., "$100" -> 100)
+          const amount = parseFloat(task.budget.replace(/[^0-9.]/g, '')) || 0;
+          return sum + amount;
+        }
+        return sum;
       }, 0);
-      
-      const completedChallenges = results.length;
-      
-      // Average score is based on performance (0-100 scale)
-      const avgScore = completedChallenges > 0 
-        ? Math.round(results.reduce((sum, r) => sum + (r.score || 0), 0) / completedChallenges)
-        : 0;
-      
-      // Calculate overall skill score
-      const overallScore = skillScores.length > 0
-        ? Math.round(skillScores.reduce((sum, s) => sum + s.score, 0) / skillScores.length)
-        : 0;
 
       res.json({
-        totalPoints,
-        completedChallenges,
-        avgScore,
-        overallScore,
-        completedTasks: 0, // TODO: implement when task completion is added
-        totalEarnings: 0, // TODO: implement when task completion is added
+        completedTasks: approvedSubmissions.length,
+        totalEarnings: Math.round(totalEarnings),
+        totalBadges: 0, // TODO: implement when badges are counted
       });
     } catch (error) {
       next(error);
