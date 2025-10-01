@@ -15,6 +15,7 @@ import CreateDemand from "@/pages/create-demand";
 import ProjectDetail from "@/pages/project-detail";
 import TaskDetail from "@/pages/task-detail";
 import TaskSubmissions from "@/pages/task-submissions";
+import Tasks from "@/pages/tasks";
 
 function Router() {
   return (
@@ -26,6 +27,7 @@ function Router() {
       <ProtectedRoute path="/create-demand" component={CreateDemand} />
       <ProtectedRoute path="/projects/:projectId" component={ProjectDetail} />
       <ProtectedRoute path="/projects/:projectId/tasks/:taskId/submissions" component={TaskSubmissions} />
+      <ProtectedRoute path="/tasks" component={Tasks} />
       <ProtectedRoute path="/tasks/:id" component={TaskDetail} />
       <Route component={NotFound} />
     </Switch>

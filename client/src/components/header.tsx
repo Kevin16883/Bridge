@@ -51,8 +51,8 @@ export function Header() {
                   <Link href="/performer-dashboard" className="text-sm text-muted-foreground hover:text-foreground transition-colors" data-testid="link-dashboard">
                     Dashboard
                   </Link>
-                  <Link href="/challenges" className="text-sm text-muted-foreground hover:text-foreground transition-colors" data-testid="link-challenges">
-                    Challenges
+                  <Link href="/tasks" className="text-sm text-muted-foreground hover:text-foreground transition-colors" data-testid="link-tasks">
+                    Browse Tasks
                   </Link>
                 </>
               )}
