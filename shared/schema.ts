@@ -62,60 +62,60 @@ export const insertTaskSchema = createInsertSchema(tasks).omit({
 export type InsertTask = z.infer<typeof insertTaskSchema>;
 export type Task = typeof tasks.$inferSelect;
 
-// Challenges table
-export const challenges = pgTable("challenges", {
+// Task submissions table
+export const taskSubmissions = pgTable("task_submissions", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  title: text("title").notNull(),
+  taskId: varchar("task_id").notNull().references(() => tasks.id),
+  performerId: varchar("performer_id").notNull().references(() => users.id),
+  content: text("content").notNull(),
+  attachments: jsonb("attachments"),
+  status: text("status").notNull().$type<"submitted" | "approved" | "rejected" | "revision_requested">().default("submitted"),
+  providerFeedback: text("provider_feedback"),
+  submittedAt: timestamp("submitted_at").defaultNow().notNull(),
+  reviewedAt: timestamp("reviewed_at"),
+});
+
+export const insertTaskSubmissionSchema = createInsertSchema(taskSubmissions).omit({
+  id: true,
+  submittedAt: true,
+  reviewedAt: true,
+});
+
+export type InsertTaskSubmission = z.infer<typeof insertTaskSubmissionSchema>;
+export type TaskSubmission = typeof taskSubmissions.$inferSelect;
+
+// Badges table
+export const badges = pgTable("badges", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: text("name").notNull(),
   description: text("description").notNull(),
-  skillType: text("skill_type").notNull().$type<"logic" | "creative" | "technical" | "communication">(),
-  duration: text("duration").notNull(),
-  difficulty: text("difficulty").notNull().$type<"easy" | "medium" | "hard">(),
-  points: integer("points").notNull(),
-  content: jsonb("content"),
+  icon: text("icon").notNull(),
+  category: text("category").notNull().$type<"completion" | "quality" | "speed" | "specialty">(),
 });
 
-export const insertChallengeSchema = createInsertSchema(challenges).omit({
+export const insertBadgeSchema = createInsertSchema(badges).omit({
   id: true,
 });
 
-export type InsertChallenge = z.infer<typeof insertChallengeSchema>;
-export type Challenge = typeof challenges.$inferSelect;
+export type InsertBadge = z.infer<typeof insertBadgeSchema>;
+export type Badge = typeof badges.$inferSelect;
 
-// Challenge results table
-export const challengeResults = pgTable("challenge_results", {
+// User badges table
+export const userBadges = pgTable("user_badges", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  challengeId: varchar("challenge_id").notNull().references(() => challenges.id),
-  performerId: varchar("performer_id").notNull().references(() => users.id),
-  response: text("response").notNull(),
-  score: integer("score").notNull(),
-  feedback: text("feedback"),
-  completedAt: timestamp("completed_at").defaultNow().notNull(),
+  userId: varchar("user_id").notNull().references(() => users.id),
+  badgeId: varchar("badge_id").notNull().references(() => badges.id),
+  taskId: varchar("task_id").references(() => tasks.id),
+  earnedAt: timestamp("earned_at").defaultNow().notNull(),
 });
 
-export const insertChallengeResultSchema = createInsertSchema(challengeResults).omit({
+export const insertUserBadgeSchema = createInsertSchema(userBadges).omit({
   id: true,
-  completedAt: true,
+  earnedAt: true,
 });
 
-export type InsertChallengeResult = z.infer<typeof insertChallengeResultSchema>;
-export type ChallengeResult = typeof challengeResults.$inferSelect;
-
-// Skill scores table
-export const skillScores = pgTable("skill_scores", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  performerId: varchar("performer_id").notNull().references(() => users.id),
-  skillType: text("skill_type").notNull(),
-  score: integer("score").notNull(),
-  updatedAt: timestamp("updated_at").defaultNow().notNull(),
-});
-
-export const insertSkillScoreSchema = createInsertSchema(skillScores).omit({
-  id: true,
-  updatedAt: true,
-});
-
-export type InsertSkillScore = z.infer<typeof insertSkillScoreSchema>;
-export type SkillScore = typeof skillScores.$inferSelect;
+export type InsertUserBadge = z.infer<typeof insertUserBadgeSchema>;
+export type UserBadge = typeof userBadges.$inferSelect;
 
 // Task applications table
 export const taskApplications = pgTable("task_applications", {

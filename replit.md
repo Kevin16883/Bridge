@@ -2,11 +2,11 @@
 
 ## Overview
 
-Bridge is a dynamic, intelligent demand-potential real-time matching platform that connects demand providers with skilled task performers through AI-driven analysis. The platform transforms natural language demand descriptions into structured micro-tasks and matches them with performers based on their skill profiles and challenge completion scores.
+Bridge is a dynamic, intelligent demand-potential matching platform that connects demand providers with task performers. The platform transforms natural language demand descriptions into structured micro-tasks using AI and matches them with performers. Performers complete tasks and receive badges as recognition from providers.
 
 The system serves two primary user personas:
-- **Demand Providers**: Users who describe their needs in natural language and receive AI-decomposed tasks matched with suitable performers
-- **Task Performers**: Users who build skill profiles through challenges and receive matched task opportunities
+- **Demand Providers**: Users who describe their needs in natural language, receive AI-decomposed tasks, and review performer submissions
+- **Task Performers**: Users who complete provider tasks, submit their work, and earn badges upon provider approval
 
 ## User Preferences
 
@@ -62,7 +62,7 @@ Preferred communication style: Simple, everyday language.
 **Storage Layer**
 - Abstract storage interface (`IStorage`) for database operations
 - Drizzle ORM for type-safe database queries
-- Organized storage methods by domain (users, projects, tasks, challenges, etc.)
+- Organized storage methods by domain (users, projects, tasks, task submissions, badges, etc.)
 
 ### Data Architecture
 
@@ -72,15 +72,15 @@ Core entities:
 - **Users**: Authentication and role designation (provider/performer)
 - **Projects**: Demand provider's original requests with budget and status tracking
 - **Tasks**: Decomposed micro-tasks with skills, budget, time estimates, and matching status
-- **Challenges**: Skill assessment activities with difficulty levels and point values
-- **ChallengeResults**: Performance records linking performers to challenge scores
-- **SkillScores**: Aggregated skill metrics for performers
+- **TaskSubmissions**: Performer work submissions with provider feedback and approval status
+- **Badges**: Achievement badges with categories (completion, quality, speed, specialty)
+- **UserBadges**: Records of badges earned by performers for completed tasks
 - **TaskApplications**: Performer applications and assignment records
 
 **Data Relationships**
-- One-to-many: Users → Projects, Projects → Tasks
+- One-to-many: Users → Projects, Projects → Tasks, Tasks → TaskSubmissions
 - Many-to-many via junction: Users ↔ Tasks (through TaskApplications)
-- User skill profiles built from ChallengeResults and SkillScores
+- Badge system: Performers earn UserBadges when providers approve TaskSubmissions
 
 **ORM Strategy**
 - Drizzle ORM with Neon serverless PostgreSQL driver

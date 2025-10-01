@@ -1,11 +1,11 @@
 import { 
-  users, projects, tasks, challenges, challengeResults, skillScores, taskApplications,
+  users, projects, tasks, taskSubmissions, badges, userBadges, taskApplications,
   type User, type InsertUser,
   type Project, type InsertProject,
   type Task, type InsertTask,
-  type Challenge, type InsertChallenge,
-  type ChallengeResult, type InsertChallengeResult,
-  type SkillScore, type InsertSkillScore,
+  type TaskSubmission, type InsertTaskSubmission,
+  type Badge, type InsertBadge,
+  type UserBadge, type InsertUserBadge,
   type TaskApplication, type InsertTaskApplication
 } from "@shared/schema";
 import { db, pool } from "./db";
@@ -38,19 +38,21 @@ export interface IStorage {
   updateTaskStatus(id: string, status: "pending" | "matched" | "in_progress" | "completed"): Promise<void>;
   matchTaskToPerformer(taskId: string, performerId: string): Promise<void>;
   
-  // Challenge operations
-  createChallenge(challenge: InsertChallenge): Promise<Challenge>;
-  getChallenge(id: string): Promise<Challenge | undefined>;
-  getAllChallenges(): Promise<Challenge[]>;
-  getChallengesBySkillType(skillType: string): Promise<Challenge[]>;
+  // Task submission operations
+  createTaskSubmission(submission: InsertTaskSubmission): Promise<TaskSubmission>;
+  getTaskSubmission(id: string): Promise<TaskSubmission | undefined>;
+  getSubmissionsByTask(taskId: string): Promise<TaskSubmission[]>;
+  getSubmissionsByPerformer(performerId: string): Promise<TaskSubmission[]>;
+  updateSubmissionStatus(id: string, status: "submitted" | "approved" | "rejected" | "revision_requested", feedback?: string): Promise<void>;
   
-  // Challenge result operations
-  createChallengeResult(result: InsertChallengeResult): Promise<ChallengeResult>;
-  getChallengeResultsByPerformer(performerId: string): Promise<ChallengeResult[]>;
+  // Badge operations
+  createBadge(badge: InsertBadge): Promise<Badge>;
+  getAllBadges(): Promise<Badge[]>;
+  getBadge(id: string): Promise<Badge | undefined>;
   
-  // Skill score operations
-  upsertSkillScore(score: InsertSkillScore): Promise<SkillScore>;
-  getSkillScoresByPerformer(performerId: string): Promise<SkillScore[]>;
+  // User badge operations
+  awardBadge(userBadge: InsertUserBadge): Promise<UserBadge>;
+  getUserBadges(userId: string): Promise<Array<UserBadge & { badge: Badge }>>;
   
   // Task application operations
   createTaskApplication(application: InsertTaskApplication): Promise<TaskApplication>;
@@ -139,58 +141,68 @@ export class DatabaseStorage implements IStorage {
     }).where(eq(tasks.id, taskId));
   }
 
-  // Challenge operations
-  async createChallenge(insertChallenge: InsertChallenge): Promise<Challenge> {
-    const [challenge] = await db.insert(challenges).values(insertChallenge).returning();
-    return challenge;
+  // Task submission operations
+  async createTaskSubmission(insertSubmission: InsertTaskSubmission): Promise<TaskSubmission> {
+    const [submission] = await db.insert(taskSubmissions).values(insertSubmission).returning();
+    return submission;
   }
 
-  async getChallenge(id: string): Promise<Challenge | undefined> {
-    const [challenge] = await db.select().from(challenges).where(eq(challenges.id, id));
-    return challenge || undefined;
+  async getTaskSubmission(id: string): Promise<TaskSubmission | undefined> {
+    const [submission] = await db.select().from(taskSubmissions).where(eq(taskSubmissions.id, id));
+    return submission || undefined;
   }
 
-  async getAllChallenges(): Promise<Challenge[]> {
-    return await db.select().from(challenges);
+  async getSubmissionsByTask(taskId: string): Promise<TaskSubmission[]> {
+    return await db.select().from(taskSubmissions).where(eq(taskSubmissions.taskId, taskId)).orderBy(desc(taskSubmissions.submittedAt));
   }
 
-  async getChallengesBySkillType(skillType: string): Promise<Challenge[]> {
-    return await db.select().from(challenges).where(eq(challenges.skillType, skillType as any));
+  async getSubmissionsByPerformer(performerId: string): Promise<TaskSubmission[]> {
+    return await db.select().from(taskSubmissions).where(eq(taskSubmissions.performerId, performerId)).orderBy(desc(taskSubmissions.submittedAt));
   }
 
-  // Challenge result operations
-  async createChallengeResult(insertResult: InsertChallengeResult): Promise<ChallengeResult> {
-    const [result] = await db.insert(challengeResults).values(insertResult).returning();
-    return result;
+  async updateSubmissionStatus(id: string, status: "submitted" | "approved" | "rejected" | "revision_requested", feedback?: string): Promise<void> {
+    await db.update(taskSubmissions)
+      .set({ 
+        status, 
+        providerFeedback: feedback,
+        reviewedAt: new Date()
+      })
+      .where(eq(taskSubmissions.id, id));
   }
 
-  async getChallengeResultsByPerformer(performerId: string): Promise<ChallengeResult[]> {
-    return await db.select().from(challengeResults).where(eq(challengeResults.performerId, performerId));
+  // Badge operations
+  async createBadge(insertBadge: InsertBadge): Promise<Badge> {
+    const [badge] = await db.insert(badges).values(insertBadge).returning();
+    return badge;
   }
 
-  // Skill score operations
-  async upsertSkillScore(insertScore: InsertSkillScore): Promise<SkillScore> {
-    const existing = await db.select().from(skillScores).where(
-      and(
-        eq(skillScores.performerId, insertScore.performerId),
-        eq(skillScores.skillType, insertScore.skillType)
-      )
-    );
-
-    if (existing.length > 0) {
-      const [updated] = await db.update(skillScores)
-        .set({ score: insertScore.score, updatedAt: new Date() })
-        .where(eq(skillScores.id, existing[0].id))
-        .returning();
-      return updated;
-    } else {
-      const [created] = await db.insert(skillScores).values(insertScore).returning();
-      return created;
-    }
+  async getAllBadges(): Promise<Badge[]> {
+    return await db.select().from(badges);
   }
 
-  async getSkillScoresByPerformer(performerId: string): Promise<SkillScore[]> {
-    return await db.select().from(skillScores).where(eq(skillScores.performerId, performerId));
+  async getBadge(id: string): Promise<Badge | undefined> {
+    const [badge] = await db.select().from(badges).where(eq(badges.id, id));
+    return badge || undefined;
+  }
+
+  // User badge operations
+  async awardBadge(insertUserBadge: InsertUserBadge): Promise<UserBadge> {
+    const [userBadge] = await db.insert(userBadges).values(insertUserBadge).returning();
+    return userBadge;
+  }
+
+  async getUserBadges(userId: string): Promise<Array<UserBadge & { badge: Badge }>> {
+    const results = await db
+      .select()
+      .from(userBadges)
+      .leftJoin(badges, eq(userBadges.badgeId, badges.id))
+      .where(eq(userBadges.userId, userId))
+      .orderBy(desc(userBadges.earnedAt));
+    
+    return results.map(r => ({
+      ...r.user_badges,
+      badge: r.badges!
+    }));
   }
 
   // Task application operations
