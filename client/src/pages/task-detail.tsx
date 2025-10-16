@@ -71,6 +71,27 @@ export default function TaskDetail() {
     },
   });
 
+  const applyMutation = useMutation({
+    mutationFn: async () => {
+      return await apiRequest("POST", `/api/tasks/${id}/apply`, {});
+    },
+    onSuccess: () => {
+      toast({
+        title: "Application submitted",
+        description: "Your application has been submitted successfully",
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/tasks", id] });
+      queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Application failed",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
   const updateStatusMutation = useMutation({
     mutationFn: async (status: "in_progress") => {
       return await apiRequest("PATCH", `/api/tasks/${id}/status`, { status });
@@ -192,6 +213,30 @@ export default function TaskDetail() {
               </div>
             )}
           </CardHeader>
+          
+          {/* Apply for Task Button - for pending, unassigned tasks */}
+          {task.status === "pending" && !task.matchedPerformerId && (
+            <CardContent className="pt-0">
+              <Button
+                onClick={() => applyMutation.mutate()}
+                disabled={applyMutation.isPending}
+                className="w-full"
+                data-testid="button-apply-task"
+              >
+                {applyMutation.isPending ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
+                    Applying...
+                  </>
+                ) : (
+                  <>
+                    <CheckCircle className="h-4 w-4 mr-2" />
+                    Apply for Task
+                  </>
+                )}
+              </Button>
+            </CardContent>
+          )}
           
           {/* Start Task Button */}
           {task.status === "matched" && (

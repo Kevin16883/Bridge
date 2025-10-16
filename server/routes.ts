@@ -241,15 +241,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ error: "Task not found" });
       }
 
-      // Allow access for providers (own project) or assigned performers
+      // Allow access for providers (own project) or performers
       if (req.user!.role === "provider") {
         const project = await storage.getProject(task.projectId);
         if (!project || project.providerId !== req.user!.id) {
           return res.status(403).json({ error: "Access denied" });
         }
       } else if (req.user!.role === "performer") {
-        if (task.matchedPerformerId !== req.user!.id) {
-          return res.status(403).json({ error: "You are not assigned to this task" });
+        // Performers can view:
+        // 1. Available tasks (pending, no matchedPerformerId) - to apply
+        // 2. Tasks assigned to them (matchedPerformerId matches)
+        const isAvailable = task.status === "pending" && !task.matchedPerformerId;
+        const isAssigned = task.matchedPerformerId === req.user!.id;
+        
+        if (!isAvailable && !isAssigned) {
+          return res.status(403).json({ error: "Access denied" });
         }
       }
 
@@ -275,6 +281,44 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userBadges = await storage.getUserBadges(req.user!.id);
       res.json(userBadges);
     } catch (error) {
+      next(error);
+    }
+  });
+
+  // Apply for a task (performer only)
+  app.post("/api/tasks/:id/apply", requirePerformer, async (req, res, next) => {
+    try {
+      const taskId = req.params.id;
+      const task = await storage.getTask(taskId);
+      
+      if (!task) {
+        return res.status(404).json({ error: "Task not found" });
+      }
+
+      // Check if task is available (pending and not assigned)
+      if (task.status !== "pending" || task.matchedPerformerId) {
+        return res.status(400).json({ error: "Task is not available for application" });
+      }
+
+      // Check if performer already applied
+      const existingApplications = await storage.getApplicationsByTask(taskId);
+      const alreadyApplied = existingApplications.some(app => app.performerId === req.user!.id);
+      
+      if (alreadyApplied) {
+        return res.status(400).json({ error: "You have already applied for this task" });
+      }
+
+      const application = await storage.createTaskApplication({
+        taskId,
+        performerId: req.user!.id,
+        status: "pending",
+      });
+
+      res.status(201).json(application);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ error: error.errors[0].message });
+      }
       next(error);
     }
   });
@@ -306,6 +350,72 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (error instanceof z.ZodError) {
         return res.status(400).json({ error: error.errors[0].message });
       }
+      next(error);
+    }
+  });
+
+  // Get applications for a task (provider only)
+  app.get("/api/tasks/:id/applications", requireProvider, async (req, res, next) => {
+    try {
+      const taskId = req.params.id;
+      const task = await storage.getTask(taskId);
+      
+      if (!task) {
+        return res.status(404).json({ error: "Task not found" });
+      }
+
+      // Verify provider owns this project
+      const project = await storage.getProject(task.projectId);
+      if (!project || project.providerId !== req.user!.id) {
+        return res.status(403).json({ error: "Access denied" });
+      }
+
+      const applications = await storage.getApplicationsByTask(taskId);
+      res.json(applications);
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  // Accept task application and assign performer (provider only)
+  app.post("/api/tasks/:taskId/applications/:applicationId/accept", requireProvider, async (req, res, next) => {
+    try {
+      const { taskId, applicationId } = req.params;
+      
+      const task = await storage.getTask(taskId);
+      if (!task) {
+        return res.status(404).json({ error: "Task not found" });
+      }
+
+      // Verify provider owns this project
+      const project = await storage.getProject(task.projectId);
+      if (!project || project.providerId !== req.user!.id) {
+        return res.status(403).json({ error: "Access denied" });
+      }
+
+      // Get all applications for this task
+      const applications = await storage.getApplicationsByTask(taskId);
+      const application = applications.find(app => app.id === applicationId);
+      
+      if (!application) {
+        return res.status(404).json({ error: "Application not found" });
+      }
+
+      // Update application status to accepted
+      await storage.updateApplicationStatus(applicationId, "accepted");
+      
+      // Reject other applications
+      const otherApplications = applications.filter(app => app.id !== applicationId);
+      await Promise.all(
+        otherApplications.map(app => storage.updateApplicationStatus(app.id, "rejected"))
+      );
+
+      // Assign task to performer
+      await storage.matchTaskToPerformer(taskId, application.performerId);
+
+      const updatedTask = await storage.getTask(taskId);
+      res.json(updatedTask);
+    } catch (error) {
       next(error);
     }
   });
