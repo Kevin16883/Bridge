@@ -71,6 +71,28 @@ export default function TaskDetail() {
     },
   });
 
+  const updateStatusMutation = useMutation({
+    mutationFn: async (status: "in_progress") => {
+      return await apiRequest("PATCH", `/api/tasks/${id}/status`, { status });
+    },
+    onSuccess: () => {
+      toast({
+        title: "Status updated",
+        description: "Task status has been updated successfully",
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/tasks", id] });
+      queryClient.invalidateQueries({ queryKey: ["/api/tasks"] }); // Remove from available tasks list
+      queryClient.invalidateQueries({ queryKey: ["/api/performer/my-tasks"] });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Update failed",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
   const onSubmit = (data: SubmissionFormData) => {
     submitMutation.mutate(data);
   };
@@ -170,6 +192,30 @@ export default function TaskDetail() {
               </div>
             )}
           </CardHeader>
+          
+          {/* Start Task Button */}
+          {task.status === "matched" && (
+            <CardContent className="pt-0">
+              <Button
+                onClick={() => updateStatusMutation.mutate("in_progress")}
+                disabled={updateStatusMutation.isPending}
+                className="w-full"
+                data-testid="button-start-task"
+              >
+                {updateStatusMutation.isPending ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
+                    Starting...
+                  </>
+                ) : (
+                  <>
+                    <CheckCircle className="h-4 w-4 mr-2" />
+                    Start Working on Task
+                  </>
+                )}
+              </Button>
+            </CardContent>
+          )}
         </Card>
 
         {/* Submission History */}

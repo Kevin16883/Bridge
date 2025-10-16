@@ -202,6 +202,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get all available tasks (for task browsing)
+  app.get("/api/tasks", requireAuth, async (req, res, next) => {
+    try {
+      // Return available tasks for performers, or all tasks for providers
+      if (req.user!.role === "performer") {
+        const tasks = await storage.getAvailableTasks();
+        res.json(tasks);
+      } else {
+        // Providers can see all tasks from their projects
+        const projects = await storage.getProjectsByProvider(req.user!.id);
+        const allTasks = await Promise.all(
+          projects.map(p => storage.getTasksByProject(p.id))
+        );
+        res.json(allTasks.flat());
+      }
+    } catch (error) {
+      next(error);
+    }
+  });
+
   // Get available tasks for performers (performer only)
   app.get("/api/tasks/available", requirePerformer, async (req, res, next) => {
     try {
@@ -255,6 +275,37 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userBadges = await storage.getUserBadges(req.user!.id);
       res.json(userBadges);
     } catch (error) {
+      next(error);
+    }
+  });
+
+  // Update task status/progress (performer only)
+  app.patch("/api/tasks/:id/status", requirePerformer, async (req, res, next) => {
+    try {
+      const taskId = req.params.id;
+      const task = await storage.getTask(taskId);
+      
+      if (!task) {
+        return res.status(404).json({ error: "Task not found" });
+      }
+
+      // Check if performer is assigned to this task
+      if (task.matchedPerformerId !== req.user!.id) {
+        return res.status(403).json({ error: "You are not assigned to this task" });
+      }
+
+      const { status } = z.object({
+        status: z.enum(["matched", "in_progress", "completed"])
+      }).parse(req.body);
+
+      await storage.updateTaskStatus(taskId, status);
+      const updatedTask = await storage.getTask(taskId);
+      
+      res.json(updatedTask);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ error: error.errors[0].message });
+      }
       next(error);
     }
   });

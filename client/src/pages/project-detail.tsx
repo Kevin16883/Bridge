@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { useLocation, Link } from "wouter";
-import { ArrowLeft, Clock, DollarSign, CheckCircle2, AlertCircle, FileText } from "lucide-react";
+import { ArrowLeft, Clock, DollarSign, CheckCircle2, AlertCircle, FileText, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -15,6 +15,7 @@ interface Task {
   difficulty: "beginner" | "intermediate" | "advanced";
   status: "pending" | "matched" | "in_progress" | "completed";
   performerId?: string;
+  matchedPerformerId?: string;
 }
 
 interface Project {
@@ -204,6 +205,29 @@ export default function ProjectDetail() {
                           <span className="ml-2 font-medium">{task.budget}</span>
                         </div>
                       </div>
+                      
+                      {/* Task Progress Info */}
+                      {task.matchedPerformerId && (
+                        <div className="p-3 rounded-lg bg-muted/50 mb-3">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
+                                <Users className="w-4 h-4 text-primary" />
+                              </div>
+                              <div>
+                                <p className="text-xs text-muted-foreground">Assigned Performer</p>
+                                <p className="text-sm font-medium">Task Assigned</p>
+                              </div>
+                            </div>
+                            <Badge variant="outline" className="text-xs">
+                              {task.status === "matched" && "Ready to Start"}
+                              {task.status === "in_progress" && "Working"}
+                              {task.status === "completed" && "Completed"}
+                            </Badge>
+                          </div>
+                        </div>
+                      )}
+                      
                       <div className="flex flex-wrap gap-2 mb-4">
                         {task.skills.map((skill) => (
                           <Badge
