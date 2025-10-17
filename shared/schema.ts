@@ -175,3 +175,121 @@ export const insertWeeklyReportSchema = createInsertSchema(weeklyReports).omit({
 
 export type InsertWeeklyReport = z.infer<typeof insertWeeklyReportSchema>;
 export type WeeklyReport = typeof weeklyReports.$inferSelect;
+
+// Questions table (Q&A Community)
+export const questions = pgTable("questions", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id),
+  title: text("title").notNull(),
+  content: text("content").notNull(),
+  tags: text("tags").array().notNull(), // AI-generated tags
+  category: text("category").notNull().$type<"interview" | "learning_path" | "offer_choice" | "study_plan" | "textbook">(),
+  viewCount: integer("view_count").notNull().default(0),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const insertQuestionSchema = createInsertSchema(questions).omit({
+  id: true,
+  createdAt: true,
+  viewCount: true,
+});
+
+export type InsertQuestion = z.infer<typeof insertQuestionSchema>;
+export type Question = typeof questions.$inferSelect;
+
+// Comments table
+export const comments = pgTable("comments", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  questionId: varchar("question_id").notNull().references(() => questions.id),
+  userId: varchar("user_id").notNull().references(() => users.id),
+  content: text("content").notNull(),
+  upvotes: integer("upvotes").notNull().default(0),
+  downvotes: integer("downvotes").notNull().default(0),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const insertCommentSchema = createInsertSchema(comments).omit({
+  id: true,
+  createdAt: true,
+  upvotes: true,
+  downvotes: true,
+});
+
+export type InsertComment = z.infer<typeof insertCommentSchema>;
+export type Comment = typeof comments.$inferSelect;
+
+// Comment votes table
+export const commentVotes = pgTable("comment_votes", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  commentId: varchar("comment_id").notNull().references(() => comments.id),
+  userId: varchar("user_id").notNull().references(() => users.id),
+  voteType: text("vote_type").notNull().$type<"up" | "down">(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => ({
+  uniqueUserVote: sql`UNIQUE (${table.commentId}, ${table.userId})`,
+}));
+
+export const insertCommentVoteSchema = createInsertSchema(commentVotes).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type InsertCommentVote = z.infer<typeof insertCommentVoteSchema>;
+export type CommentVote = typeof commentVotes.$inferSelect;
+
+// Saved comments table
+export const savedComments = pgTable("saved_comments", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id),
+  commentId: varchar("comment_id").notNull().references(() => comments.id),
+  questionId: varchar("question_id").notNull().references(() => questions.id),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => ({
+  uniqueUserComment: sql`UNIQUE (${table.userId}, ${table.commentId})`,
+}));
+
+export const insertSavedCommentSchema = createInsertSchema(savedComments).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type InsertSavedComment = z.infer<typeof insertSavedCommentSchema>;
+export type SavedComment = typeof savedComments.$inferSelect;
+
+// Saved questions table
+export const savedQuestions = pgTable("saved_questions", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id),
+  questionId: varchar("question_id").notNull().references(() => questions.id),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => ({
+  uniqueUserQuestion: sql`UNIQUE (${table.userId}, ${table.questionId})`,
+}));
+
+export const insertSavedQuestionSchema = createInsertSchema(savedQuestions).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type InsertSavedQuestion = z.infer<typeof insertSavedQuestionSchema>;
+export type SavedQuestion = typeof savedQuestions.$inferSelect;
+
+// Question answers table (AI-generated from saved comments)
+export const questionAnswers = pgTable("question_answers", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  questionId: varchar("question_id").notNull().references(() => questions.id),
+  userId: varchar("user_id").notNull().references(() => users.id),
+  content: text("content").notNull(), // AI-synthesized answer
+  sourceCommentIds: text("source_comment_ids").array().notNull(), // IDs of saved comments used
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => ({
+  uniqueUserAnswer: sql`UNIQUE (${table.userId}, ${table.questionId})`,
+}));
+
+export const insertQuestionAnswerSchema = createInsertSchema(questionAnswers).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type InsertQuestionAnswer = z.infer<typeof insertQuestionAnswerSchema>;
+export type QuestionAnswer = typeof questionAnswers.$inferSelect;
