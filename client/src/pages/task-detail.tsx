@@ -39,6 +39,11 @@ export default function TaskDetail() {
     enabled: !!id && !!task,
   });
 
+  const { data: applicationStatus } = useQuery<{ hasApplied: boolean; application: any }>({
+    queryKey: ["/api/tasks", id, "application-status"],
+    enabled: !!id && !!task && task.status === "pending",
+  });
+
   const form = useForm<SubmissionFormData>({
     resolver: zodResolver(submissionFormSchema),
     defaultValues: {
@@ -82,10 +87,34 @@ export default function TaskDetail() {
       });
       queryClient.invalidateQueries({ queryKey: ["/api/tasks", id] });
       queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/tasks", id, "application-status"] });
     },
     onError: (error: Error) => {
       toast({
         title: "Application failed",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  const cancelApplicationMutation = useMutation({
+    mutationFn: async () => {
+      return await apiRequest("DELETE", `/api/tasks/${id}/application`, {});
+    },
+    onSuccess: () => {
+      toast({
+        title: "Application canceled",
+        description: "Your application has been canceled successfully",
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/tasks", id] });
+      queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/tasks", id, "application-status"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/performer/applications"] });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Cancellation failed",
         description: error.message,
         variant: "destructive",
       });
@@ -214,27 +243,53 @@ export default function TaskDetail() {
             )}
           </CardHeader>
           
-          {/* Apply for Task Button - for pending, unassigned tasks */}
+          {/* Apply/Cancel Application Button - for pending, unassigned tasks */}
           {task.status === "pending" && !task.matchedPerformerId && (
             <CardContent className="pt-0">
-              <Button
-                onClick={() => applyMutation.mutate()}
-                disabled={applyMutation.isPending}
-                className="w-full"
-                data-testid="button-apply-task"
-              >
-                {applyMutation.isPending ? (
-                  <>
-                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
-                    Applying...
-                  </>
-                ) : (
-                  <>
-                    <CheckCircle className="h-4 w-4 mr-2" />
-                    Apply for Task
-                  </>
-                )}
-              </Button>
+              {applicationStatus?.hasApplied ? (
+                <Button
+                  onClick={() => {
+                    if (confirm("确定要取消申请吗？")) {
+                      cancelApplicationMutation.mutate();
+                    }
+                  }}
+                  disabled={cancelApplicationMutation.isPending}
+                  variant="destructive"
+                  className="w-full"
+                  data-testid="button-cancel-application"
+                >
+                  {cancelApplicationMutation.isPending ? (
+                    <>
+                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
+                      取消中...
+                    </>
+                  ) : (
+                    <>
+                      <AlertCircle className="h-4 w-4 mr-2" />
+                      取消申请
+                    </>
+                  )}
+                </Button>
+              ) : (
+                <Button
+                  onClick={() => applyMutation.mutate()}
+                  disabled={applyMutation.isPending}
+                  className="w-full"
+                  data-testid="button-apply-task"
+                >
+                  {applyMutation.isPending ? (
+                    <>
+                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
+                      Applying...
+                    </>
+                  ) : (
+                    <>
+                      <CheckCircle className="h-4 w-4 mr-2" />
+                      Apply for Task
+                    </>
+                  )}
+                </Button>
+              )}
             </CardContent>
           )}
           

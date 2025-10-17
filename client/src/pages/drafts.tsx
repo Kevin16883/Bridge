@@ -128,30 +128,34 @@ export default function Drafts() {
                 </div>
               </CardHeader>
               <CardContent>
-                <div className="flex gap-2">
+                <div className="space-y-2">
+                  <div className="flex gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="flex-1"
+                      onClick={() => setLocation(`/create-demand?draft=${draft.id}`)}
+                      data-testid={`button-edit-${draft.id}`}
+                    >
+                      <FileText className="w-4 h-4 mr-2" />
+                      继续编辑
+                    </Button>
+                    <Button
+                      variant="default"
+                      size="sm"
+                      className="flex-1"
+                      onClick={() => publishMutation.mutate(draft.id)}
+                      disabled={publishMutation.isPending}
+                      data-testid={`button-publish-${draft.id}`}
+                    >
+                      <Send className="w-4 h-4 mr-2" />
+                      发布
+                    </Button>
+                  </div>
                   <Button
-                    variant="outline"
+                    variant="destructive"
                     size="sm"
-                    className="flex-1"
-                    onClick={() => setLocation(`/create-demand?draft=${draft.id}`)}
-                    data-testid={`button-edit-${draft.id}`}
-                  >
-                    <FileText className="w-4 h-4 mr-2" />
-                    继续编辑
-                  </Button>
-                  <Button
-                    variant="default"
-                    size="sm"
-                    onClick={() => publishMutation.mutate(draft.id)}
-                    disabled={publishMutation.isPending}
-                    data-testid={`button-publish-${draft.id}`}
-                  >
-                    <Send className="w-4 h-4 mr-2" />
-                    发布
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="icon"
+                    className="w-full"
                     onClick={() => {
                       if (confirm("确定要删除这个草稿吗？")) {
                         deleteMutation.mutate(draft.id);
@@ -160,7 +164,8 @@ export default function Drafts() {
                     disabled={deleteMutation.isPending}
                     data-testid={`button-delete-${draft.id}`}
                   >
-                    <Trash2 className="w-4 h-4" />
+                    <Trash2 className="w-4 h-4 mr-2" />
+                    删除草稿
                   </Button>
                 </div>
               </CardContent>

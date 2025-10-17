@@ -163,6 +163,8 @@ export default function CreateDemand() {
         const response = await apiRequest("POST", "/api/projects", data);
         const result = await response.json();
         setCurrentProjectId(result.id);
+        // Update URL to include draft ID so future saves update the same draft
+        setLocation(`/create-demand?draft=${result.id}`);
         return result;
       }
     },

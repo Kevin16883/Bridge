@@ -80,7 +80,9 @@ export interface IStorage {
   createTaskApplication(application: InsertTaskApplication): Promise<TaskApplication>;
   getApplicationsByTask(taskId: string): Promise<TaskApplication[]>;
   getApplicationsByPerformer(performerId: string): Promise<TaskApplication[]>;
+  getApplicationByTaskAndPerformer(taskId: string, performerId: string): Promise<TaskApplication | undefined>;
   updateApplicationStatus(id: string, status: "pending" | "accepted" | "rejected"): Promise<void>;
+  deleteTaskApplication(taskId: string, performerId: string): Promise<void>;
   
   // Time tracking operations
   createTimeTracking(tracking: InsertTimeTracking): Promise<TimeTracking>;
@@ -386,8 +388,27 @@ export class DatabaseStorage implements IStorage {
     return await db.select().from(taskApplications).where(eq(taskApplications.performerId, performerId));
   }
 
+  async getApplicationByTaskAndPerformer(taskId: string, performerId: string): Promise<TaskApplication | undefined> {
+    const [application] = await db.select().from(taskApplications).where(
+      and(
+        eq(taskApplications.taskId, taskId),
+        eq(taskApplications.performerId, performerId)
+      )
+    );
+    return application;
+  }
+
   async updateApplicationStatus(id: string, status: "pending" | "accepted" | "rejected"): Promise<void> {
     await db.update(taskApplications).set({ status }).where(eq(taskApplications.id, id));
+  }
+
+  async deleteTaskApplication(taskId: string, performerId: string): Promise<void> {
+    await db.delete(taskApplications).where(
+      and(
+        eq(taskApplications.taskId, taskId),
+        eq(taskApplications.performerId, performerId)
+      )
+    );
   }
 
   // Time tracking operations

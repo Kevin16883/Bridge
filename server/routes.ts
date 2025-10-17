@@ -454,6 +454,44 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Check application status for current user (performer only)
+  app.get("/api/tasks/:id/application-status", requirePerformer, async (req, res, next) => {
+    try {
+      const taskId = req.params.id;
+      const application = await storage.getApplicationByTaskAndPerformer(taskId, req.user!.id);
+      
+      res.json({ 
+        hasApplied: !!application,
+        application: application || null
+      });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  // Cancel application for a task (performer only)
+  app.delete("/api/tasks/:id/application", requirePerformer, async (req, res, next) => {
+    try {
+      const taskId = req.params.id;
+      const application = await storage.getApplicationByTaskAndPerformer(taskId, req.user!.id);
+      
+      if (!application) {
+        return res.status(404).json({ error: "Application not found" });
+      }
+
+      // Only allow canceling pending applications
+      if (application.status !== "pending") {
+        return res.status(400).json({ error: "Can only cancel pending applications" });
+      }
+
+      await storage.deleteTaskApplication(taskId, req.user!.id);
+      
+      res.json({ success: true });
+    } catch (error) {
+      next(error);
+    }
+  });
+
   // Update task status/progress (performer only)
   app.patch("/api/tasks/:id/status", requirePerformer, async (req, res, next) => {
     try {
