@@ -177,9 +177,52 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Get projects for current user (provider only)
   app.get("/api/projects", requireProvider, async (req, res, next) => {
     try {
-      const projects = await storage.getProjectsByProvider(req.user!.id);
+      const { status, keyword } = req.query;
+      
+      let projects;
+      if (keyword) {
+        projects = await storage.searchProjects(req.user!.id, keyword as string);
+      } else if (status) {
+        projects = await storage.getProjectsByProviderAndStatus(
+          req.user!.id, 
+          status as "draft" | "active" | "completed"
+        );
+      } else {
+        projects = await storage.getProjectsByProvider(req.user!.id);
+      }
+      
       res.json(projects);
     } catch (error) {
+      next(error);
+    }
+  });
+
+  // Update project (for saving drafts and editing)
+  app.patch("/api/projects/:id", requireProvider, async (req, res, next) => {
+    try {
+      const project = await storage.getProject(req.params.id);
+      if (!project) {
+        return res.status(404).json({ error: "Project not found" });
+      }
+
+      if (project.providerId !== req.user!.id) {
+        return res.status(403).json({ error: "Access denied" });
+      }
+
+      const validatedUpdates = z.object({
+        originalDemand: z.string().optional(),
+        status: z.enum(["draft", "active", "completed"]).optional(),
+        totalBudget: z.string().optional(),
+      }).parse(req.body);
+
+      await storage.updateProject(req.params.id, validatedUpdates);
+      const updatedProject = await storage.getProject(req.params.id);
+      
+      res.json(updatedProject);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ error: error.errors[0].message });
+      }
       next(error);
     }
   });
@@ -204,12 +247,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Get all available tasks (for task browsing)
+  // Get all available tasks (for task browsing) with search support
   app.get("/api/tasks", requireAuth, async (req, res, next) => {
     try {
-      // Return available tasks for performers, or all tasks for providers
+      const { keyword, skills } = req.query;
+      const skillsArray = skills ? (typeof skills === 'string' ? [skills] : skills as string[]) : undefined;
+
+      // Return available tasks for performers with search, or all tasks for providers
       if (req.user!.role === "performer") {
-        const tasks = await storage.getAvailableTasks();
+        const tasks = keyword || skillsArray 
+          ? await storage.searchTasks(keyword as string | undefined, skillsArray)
+          : await storage.getAvailableTasks();
         res.json(tasks);
       } else {
         // Providers can see all tasks from their projects
@@ -219,6 +267,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
         );
         res.json(allTasks.flat());
       }
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  // Search performer's assigned tasks
+  app.get("/api/performer/my-tasks/search", requirePerformer, async (req, res, next) => {
+    try {
+      const { keyword, skills } = req.query;
+      const skillsArray = skills ? (typeof skills === 'string' ? [skills] : skills as string[]) : undefined;
+      
+      const tasks = await storage.searchTasksForPerformer(
+        req.user!.id,
+        keyword as string | undefined,
+        skillsArray
+      );
+      res.json(tasks);
     } catch (error) {
       next(error);
     }
@@ -698,6 +763,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
         totalEarnings: Math.round(totalEarnings),
         totalBadges: userBadges.length,
       });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  // Get performer's applications (performer only)
+  app.get("/api/performer/applications", requirePerformer, async (req, res, next) => {
+    try {
+      const applications = await storage.getApplicationsByPerformer(req.user!.id);
+      
+      // Fetch task details for each application
+      const applicationsWithTasks = await Promise.all(
+        applications.map(async (app) => {
+          const task = await storage.getTask(app.taskId);
+          return {
+            ...app,
+            task,
+          };
+        })
+      );
+
+      res.json(applicationsWithTasks);
     } catch (error) {
       next(error);
     }
