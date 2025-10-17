@@ -50,13 +50,21 @@ export default function PerformerDashboard() {
       
       <div className="container px-4 py-8">
         {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-4xl font-bold mb-2" data-testid="text-page-title">
-            Performer Dashboard
-          </h1>
-          <p className="text-muted-foreground text-lg">
-            Track your tasks and achievements
-          </p>
+        <div className="mb-8 flex items-center justify-between">
+          <div>
+            <h1 className="text-4xl font-bold mb-2" data-testid="text-page-title">
+              Performer Dashboard
+            </h1>
+            <p className="text-muted-foreground text-lg">
+              Track your tasks and achievements
+            </p>
+          </div>
+          <Link href="/applications">
+            <Button variant="outline" data-testid="button-applications">
+              <Clock className="w-4 h-4 mr-2" />
+              申请记录
+            </Button>
+          </Link>
         </div>
 
         {/* Stats Cards */}
