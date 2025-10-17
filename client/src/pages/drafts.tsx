@@ -29,10 +29,7 @@ export default function Drafts() {
 
   const publishMutation = useMutation({
     mutationFn: async (projectId: string) => {
-      return await apiRequest(`/api/projects/${projectId}`, {
-        method: "PATCH",
-        body: JSON.stringify({ status: "active" }),
-      });
+      return await apiRequest("PATCH", `/api/projects/${projectId}`, { status: "active" });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/projects"] });
@@ -52,9 +49,7 @@ export default function Drafts() {
 
   const deleteMutation = useMutation({
     mutationFn: async (projectId: string) => {
-      return await apiRequest(`/api/projects/${projectId}`, {
-        method: "DELETE",
-      });
+      return await apiRequest("DELETE", `/api/projects/${projectId}`);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/projects"] });

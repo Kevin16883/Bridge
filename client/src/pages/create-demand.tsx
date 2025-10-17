@@ -101,7 +101,8 @@ export default function CreateDemand() {
   });
 
   const saveDraftMutation = useMutation({
-    mutationFn: async (data: { demand: string; status: "draft" }) => {
+    mutationFn: async (demandText: string) => {
+      const data = { originalDemand: demandText, status: "draft" as const };
       if (currentProjectId) {
         // Update existing draft
         const response = await apiRequest("PATCH", `/api/projects/${currentProjectId}`, data);
@@ -134,7 +135,7 @@ export default function CreateDemand() {
   useEffect(() => {
     if (demand.trim().length >= 10) {
       const timer = setTimeout(() => {
-        saveDraftMutation.mutate({ demand, status: "draft" });
+        saveDraftMutation.mutate(demand);
       }, 2000); // 2 seconds debounce
       return () => clearTimeout(timer);
     }

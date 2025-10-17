@@ -143,7 +143,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Create project with AI-generated tasks (provider only)
   app.post("/api/projects", requireProvider, async (req, res, next) => {
     try {
-      const validatedProject = insertProjectSchema.extend({
+      const validatedProject = insertProjectSchema.omit({ providerId: true }).extend({
         tasks: z.array(insertTaskSchema.omit({ id: true, projectId: true })).optional(),
       }).parse(req.body);
 
