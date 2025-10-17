@@ -111,7 +111,7 @@ export default function QuestionDetail() {
 
   const addCommentMutation = useMutation({
     mutationFn: async (content: string) => {
-      return apiRequest(`/api/questions/${questionId}/comments`, "POST", { content });
+      return apiRequest("POST", `/api/questions/${questionId}/comments`, { content });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/questions", questionId, "comments"] });
@@ -132,7 +132,7 @@ export default function QuestionDetail() {
 
   const voteMutation = useMutation({
     mutationFn: async ({ commentId, voteType }: { commentId: string; voteType: "up" | "down" }) => {
-      return apiRequest(`/api/comments/${commentId}/vote`, "POST", { voteType });
+      return apiRequest("POST", `/api/comments/${commentId}/vote`, { voteType });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/questions", questionId, "comments"] });
@@ -142,7 +142,7 @@ export default function QuestionDetail() {
 
   const removeVoteMutation = useMutation({
     mutationFn: async (commentId: string) => {
-      return apiRequest(`/api/comments/${commentId}/vote`, "DELETE");
+      return apiRequest("DELETE", `/api/comments/${commentId}/vote`);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/questions", questionId, "comments"] });
@@ -152,7 +152,7 @@ export default function QuestionDetail() {
 
   const saveCommentMutation = useMutation({
     mutationFn: async (commentId: string) => {
-      return apiRequest(`/api/comments/${commentId}/save`, "POST");
+      return apiRequest("POST", `/api/comments/${commentId}/save`);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/my-saves"] });
@@ -165,7 +165,7 @@ export default function QuestionDetail() {
 
   const unsaveCommentMutation = useMutation({
     mutationFn: async (commentId: string) => {
-      return apiRequest(`/api/comments/${commentId}/save`, "DELETE");
+      return apiRequest("DELETE", `/api/comments/${commentId}/save`);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/my-saves"] });
@@ -178,7 +178,7 @@ export default function QuestionDetail() {
 
   const generateAnswerMutation = useMutation({
     mutationFn: async () => {
-      return apiRequest(`/api/questions/${questionId}/generate-answer`, "POST");
+      return apiRequest("POST", `/api/questions/${questionId}/generate-answer`);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/questions", questionId, "my-answer"] });

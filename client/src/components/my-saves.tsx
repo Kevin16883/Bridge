@@ -46,8 +46,8 @@ type SavedComment = {
 };
 
 type MySavesResponse = {
-  savedQuestions: SavedQuestion[];
-  savedComments: SavedComment[];
+  questions: SavedQuestion[];
+  comments: SavedComment[];
 };
 
 export function MySaves() {
@@ -92,11 +92,11 @@ export function MySaves() {
               <div>
                 <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
                   <Bookmark className="h-4 w-4" />
-                  收藏的问题 ({data?.savedQuestions?.length || 0})
+                  收藏的问题 ({data?.questions?.length || 0})
                 </h3>
-                {data?.savedQuestions && data.savedQuestions.length > 0 ? (
+                {data?.questions && data.questions.length > 0 ? (
                   <div className="space-y-2">
-                    {data.savedQuestions.map((saved) => (
+                    {data.questions.map((saved) => (
                       <Card
                         key={saved.id}
                         className="p-3 hover-elevate cursor-pointer"
@@ -135,11 +135,11 @@ export function MySaves() {
               <div>
                 <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
                   <MessageSquare className="h-4 w-4" />
-                  收藏的评论 ({data?.savedComments?.length || 0})
+                  收藏的评论 ({data?.comments?.length || 0})
                 </h3>
-                {data?.savedComments && data.savedComments.length > 0 ? (
+                {data?.comments && data.comments.length > 0 ? (
                   <div className="space-y-2">
-                    {data.savedComments.map((saved) => (
+                    {data.comments.map((saved) => (
                       <Card
                         key={saved.id}
                         className="p-3 hover-elevate cursor-pointer"

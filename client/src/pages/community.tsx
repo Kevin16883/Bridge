@@ -81,7 +81,7 @@ export default function Community() {
 
   const createQuestionMutation = useMutation({
     mutationFn: async (data: QuestionFormData) => {
-      return apiRequest("/api/questions", "POST", data);
+      return apiRequest("POST", "/api/questions", data);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/questions"] });
