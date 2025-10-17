@@ -1,5 +1,6 @@
 import { 
   users, projects, tasks, taskSubmissions, badges, userBadges, taskApplications, timeTracking, weeklyReports,
+  questions, comments, commentVotes, savedComments, savedQuestions, questionAnswers,
   type User, type InsertUser,
   type Project, type InsertProject,
   type Task, type InsertTask,
@@ -8,7 +9,13 @@ import {
   type UserBadge, type InsertUserBadge,
   type TaskApplication, type InsertTaskApplication,
   type TimeTracking, type InsertTimeTracking,
-  type WeeklyReport, type InsertWeeklyReport
+  type WeeklyReport, type InsertWeeklyReport,
+  type Question, type InsertQuestion,
+  type Comment, type InsertComment,
+  type CommentVote, type InsertCommentVote,
+  type SavedComment, type InsertSavedComment,
+  type SavedQuestion, type InsertSavedQuestion,
+  type QuestionAnswer, type InsertQuestionAnswer
 } from "@shared/schema";
 import { db, pool } from "./db";
 import { eq, and, desc, sql } from "drizzle-orm";
@@ -71,6 +78,36 @@ export interface IStorage {
   createWeeklyReport(report: InsertWeeklyReport): Promise<WeeklyReport>;
   getWeeklyReportsByPerformer(performerId: string): Promise<WeeklyReport[]>;
   getWeeklyReport(id: string): Promise<WeeklyReport | undefined>;
+  
+  // Question operations
+  createQuestion(question: InsertQuestion): Promise<Question>;
+  getQuestion(id: string): Promise<Question | undefined>;
+  getAllQuestions(category?: string): Promise<Array<Question & { user: User; commentCount: number }>>;
+  incrementViewCount(id: string): Promise<void>;
+  
+  // Comment operations
+  createComment(comment: InsertComment): Promise<Comment>;
+  getCommentsByQuestion(questionId: string): Promise<Array<Comment & { user: User }>>;
+  deleteComment(id: string): Promise<void>;
+  
+  // Comment vote operations
+  voteComment(vote: InsertCommentVote): Promise<void>;
+  removeVote(commentId: string, userId: string): Promise<void>;
+  getUserVote(commentId: string, userId: string): Promise<CommentVote | undefined>;
+  
+  // Saved comments operations
+  saveComment(saved: InsertSavedComment): Promise<SavedComment>;
+  unsaveComment(userId: string, commentId: string): Promise<void>;
+  getSavedCommentsByUser(userId: string, questionId?: string): Promise<Array<SavedComment & { comment: Comment }>>;
+  
+  // Saved questions operations
+  saveQuestion(saved: InsertSavedQuestion): Promise<SavedQuestion>;
+  unsaveQuestion(userId: string, questionId: string): Promise<void>;
+  getSavedQuestionsByUser(userId: string): Promise<Array<SavedQuestion & { question: Question }>>;
+  
+  // Question answer operations
+  createQuestionAnswer(answer: InsertQuestionAnswer): Promise<QuestionAnswer>;
+  getQuestionAnswer(questionId: string, userId: string): Promise<QuestionAnswer | undefined>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -298,6 +335,254 @@ export class DatabaseStorage implements IStorage {
   async getWeeklyReport(id: string): Promise<WeeklyReport | undefined> {
     const [report] = await db.select().from(weeklyReports).where(eq(weeklyReports.id, id));
     return report || undefined;
+  }
+
+  // Question operations
+  async createQuestion(insertQuestion: InsertQuestion): Promise<Question> {
+    const [question] = await db.insert(questions).values(insertQuestion).returning();
+    return question;
+  }
+
+  async getQuestion(id: string): Promise<Question | undefined> {
+    const [question] = await db.select().from(questions).where(eq(questions.id, id));
+    return question || undefined;
+  }
+
+  async getAllQuestions(category?: string): Promise<Array<Question & { user: User; commentCount: number }>> {
+    let query = db
+      .select({
+        question: questions,
+        user: users,
+        commentCount: sql<number>`COUNT(DISTINCT ${comments.id})::int`,
+      })
+      .from(questions)
+      .leftJoin(users, eq(questions.userId, users.id))
+      .leftJoin(comments, eq(questions.id, comments.questionId))
+      .groupBy(questions.id, users.id);
+
+    if (category) {
+      query = query.where(eq(questions.category, category)) as any;
+    }
+
+    const results = await query.orderBy(desc(questions.createdAt));
+    
+    return results.map(r => ({
+      ...r.question,
+      user: r.user!,
+      commentCount: r.commentCount
+    }));
+  }
+
+  async incrementViewCount(id: string): Promise<void> {
+    await db.update(questions).set({ 
+      viewCount: sql`${questions.viewCount} + 1` 
+    }).where(eq(questions.id, id));
+  }
+
+  // Comment operations
+  async createComment(insertComment: InsertComment): Promise<Comment> {
+    const [comment] = await db.insert(comments).values(insertComment).returning();
+    return comment;
+  }
+
+  async getCommentsByQuestion(questionId: string): Promise<Array<Comment & { user: User }>> {
+    const results = await db
+      .select()
+      .from(comments)
+      .leftJoin(users, eq(comments.userId, users.id))
+      .where(eq(comments.questionId, questionId))
+      .orderBy(desc(comments.createdAt));
+    
+    return results.map(r => ({
+      ...r.comments,
+      user: r.users!
+    }));
+  }
+
+  async deleteComment(id: string): Promise<void> {
+    await db.delete(comments).where(eq(comments.id, id));
+  }
+
+  // Comment vote operations
+  async voteComment(insertVote: InsertCommentVote): Promise<void> {
+    // First, remove any existing vote from this user on this comment
+    await db.delete(commentVotes).where(
+      and(
+        eq(commentVotes.commentId, insertVote.commentId),
+        eq(commentVotes.userId, insertVote.userId)
+      )
+    );
+
+    // Insert the new vote
+    await db.insert(commentVotes).values(insertVote);
+
+    // Update the comment's vote counts
+    const upvoteCount = await db
+      .select({ count: sql<number>`COUNT(*)::int` })
+      .from(commentVotes)
+      .where(
+        and(
+          eq(commentVotes.commentId, insertVote.commentId),
+          eq(commentVotes.voteType, 'up')
+        )
+      );
+
+    const downvoteCount = await db
+      .select({ count: sql<number>`COUNT(*)::int` })
+      .from(commentVotes)
+      .where(
+        and(
+          eq(commentVotes.commentId, insertVote.commentId),
+          eq(commentVotes.voteType, 'down')
+        )
+      );
+
+    await db.update(comments).set({
+      upvotes: upvoteCount[0].count,
+      downvotes: downvoteCount[0].count
+    }).where(eq(comments.id, insertVote.commentId));
+  }
+
+  async removeVote(commentId: string, userId: string): Promise<void> {
+    await db.delete(commentVotes).where(
+      and(
+        eq(commentVotes.commentId, commentId),
+        eq(commentVotes.userId, userId)
+      )
+    );
+
+    // Update the comment's vote counts
+    const upvoteCount = await db
+      .select({ count: sql<number>`COUNT(*)::int` })
+      .from(commentVotes)
+      .where(
+        and(
+          eq(commentVotes.commentId, commentId),
+          eq(commentVotes.voteType, 'up')
+        )
+      );
+
+    const downvoteCount = await db
+      .select({ count: sql<number>`COUNT(*)::int` })
+      .from(commentVotes)
+      .where(
+        and(
+          eq(commentVotes.commentId, commentId),
+          eq(commentVotes.voteType, 'down')
+        )
+      );
+
+    await db.update(comments).set({
+      upvotes: upvoteCount[0].count,
+      downvotes: downvoteCount[0].count
+    }).where(eq(comments.id, commentId));
+  }
+
+  async getUserVote(commentId: string, userId: string): Promise<CommentVote | undefined> {
+    const [vote] = await db.select().from(commentVotes).where(
+      and(
+        eq(commentVotes.commentId, commentId),
+        eq(commentVotes.userId, userId)
+      )
+    );
+    return vote || undefined;
+  }
+
+  // Saved comments operations
+  async saveComment(insertSaved: InsertSavedComment): Promise<SavedComment> {
+    const [saved] = await db.insert(savedComments).values(insertSaved)
+      .onConflictDoNothing()
+      .returning();
+    return saved;
+  }
+
+  async unsaveComment(userId: string, commentId: string): Promise<void> {
+    await db.delete(savedComments).where(
+      and(
+        eq(savedComments.userId, userId),
+        eq(savedComments.commentId, commentId)
+      )
+    );
+  }
+
+  async getSavedCommentsByUser(userId: string, questionId?: string): Promise<Array<SavedComment & { comment: Comment }>> {
+    let query = db
+      .select()
+      .from(savedComments)
+      .leftJoin(comments, eq(savedComments.commentId, comments.id))
+      .where(eq(savedComments.userId, userId));
+
+    if (questionId) {
+      query = query.where(
+        and(
+          eq(savedComments.userId, userId),
+          eq(savedComments.questionId, questionId)
+        )
+      ) as any;
+    }
+
+    const results = await query.orderBy(desc(savedComments.createdAt));
+    
+    return results.map(r => ({
+      ...r.saved_comments,
+      comment: r.comments!
+    }));
+  }
+
+  // Saved questions operations
+  async saveQuestion(insertSaved: InsertSavedQuestion): Promise<SavedQuestion> {
+    const [saved] = await db.insert(savedQuestions).values(insertSaved)
+      .onConflictDoNothing()
+      .returning();
+    return saved;
+  }
+
+  async unsaveQuestion(userId: string, questionId: string): Promise<void> {
+    await db.delete(savedQuestions).where(
+      and(
+        eq(savedQuestions.userId, userId),
+        eq(savedQuestions.questionId, questionId)
+      )
+    );
+  }
+
+  async getSavedQuestionsByUser(userId: string): Promise<Array<SavedQuestion & { question: Question }>> {
+    const results = await db
+      .select()
+      .from(savedQuestions)
+      .leftJoin(questions, eq(savedQuestions.questionId, questions.id))
+      .where(eq(savedQuestions.userId, userId))
+      .orderBy(desc(savedQuestions.createdAt));
+    
+    return results.map(r => ({
+      ...r.saved_questions,
+      question: r.questions!
+    }));
+  }
+
+  // Question answer operations
+  async createQuestionAnswer(insertAnswer: InsertQuestionAnswer): Promise<QuestionAnswer> {
+    const [answer] = await db.insert(questionAnswers).values(insertAnswer)
+      .onConflictDoUpdate({
+        target: [questionAnswers.userId, questionAnswers.questionId],
+        set: {
+          content: insertAnswer.content,
+          sourceCommentIds: insertAnswer.sourceCommentIds,
+          createdAt: sql`NOW()`
+        }
+      })
+      .returning();
+    return answer;
+  }
+
+  async getQuestionAnswer(questionId: string, userId: string): Promise<QuestionAnswer | undefined> {
+    const [answer] = await db.select().from(questionAnswers).where(
+      and(
+        eq(questionAnswers.questionId, questionId),
+        eq(questionAnswers.userId, userId)
+      )
+    );
+    return answer || undefined;
   }
 }
 
