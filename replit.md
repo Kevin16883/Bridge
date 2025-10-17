@@ -55,6 +55,8 @@ Preferred communication style: Simple, everyday language.
 - Progressive disclosure in UI (showing complexity only when needed)
 - Auto-save functionality with debounced updates (3-second delay)
 - Query parameter handling in TanStack Query for search/filter operations
+- **Draft editing workflow**: AI-decomposed tasks are preserved with draft projects; providers can resume editing drafts with all task data intact
+- **Type-safe budget handling**: Frontend correctly handles numeric budget values from database while supporting legacy string formats
 
 **Social Features UI Components**
 - MessageInbox: Message center component in Header with "Private Messages" and "Notifications" tabs
