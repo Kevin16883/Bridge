@@ -23,7 +23,7 @@ import {
   type BlockedUser, type InsertBlockedUser
 } from "@shared/schema";
 import { db, pool } from "./db";
-import { eq, and, desc, sql, or, ilike, arrayContains } from "drizzle-orm";
+import { eq, and, desc, sql, or, ilike, arrayContains, inArray } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import session from "express-session";
 import connectPg from "connect-pg-simple";
@@ -1067,7 +1067,7 @@ export class DatabaseStorage implements IStorage {
           .from(tasks)
           .where(
             and(
-              sql`${tasks.projectId} = ANY(${projectIds})`,
+              inArray(tasks.projectId, projectIds),
               eq(tasks.status, "pending")
             )
           );
