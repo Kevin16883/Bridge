@@ -22,6 +22,18 @@ Preferred communication style: Simple, everyday language.
 - Wouter for lightweight client-side routing
 - TanStack Query (React Query) for server state management and caching
 
+**Routing**
+- `/` - Home page
+- `/auth`, `/login`, `/register` - Authentication (all map to AuthPage)
+- `/community`, `/questions` - Community Q&A (both map to Community page)
+- `/community/:id`, `/questions/:id` - Question detail pages
+- `/provider-dashboard` - Provider dashboard (protected)
+- `/performer-dashboard` - Performer dashboard (protected)
+- `/create-demand` - Create demand form (protected)
+- `/tasks` - Browse tasks (protected)
+- `/tasks/:id` - Task detail (protected)
+- `/projects/:projectId` - Project detail (protected)
+
 **UI Component System**
 - Shadcn/ui component library with Radix UI primitives
 - Tailwind CSS for styling with custom design tokens
@@ -42,9 +54,11 @@ Preferred communication style: Simple, everyday language.
 
 **Social Features UI Components**
 - MessageInbox: Message center component in Header with "Private Messages" and "Notifications" tabs
-- MessageDialog: Private messaging dialog with conversation view and send functionality
-- UserAvatar: Reusable avatar component with image display or username initials fallback
+- MessageDialog: Private messaging dialog with conversation view and send functionality, rendered in parent pages to avoid unmounting issues
+- UserAvatar: Reusable avatar component with image display or username initials fallback, supports onClick for interactive avatars
+- UserProfileDialog: User information dialog with message/follow/block actions, uses onMessageClick callback pattern
 - Notification badge: Displays unread message/notification count in Header
+- **Clickable Comment Avatars**: In question detail pages, comment author avatars open UserProfileDialog for user interaction
 
 ### Backend Architecture
 
@@ -57,9 +71,14 @@ Preferred communication style: Simple, everyday language.
 - RESTful endpoints prefixed with `/api`
 - Authentication endpoints: `/api/register`, `/api/login`, `/api/logout`, `/api/user`
 - Social feature endpoints: `/api/avatar`, `/api/messages`, `/api/conversations`, `/api/follow`, `/api/notifications`, `/api/block`
+- Block/Follow status endpoints: `/api/block/:userId/status`, `/api/follow/:userId/status`
 - Session management with PostgreSQL session store
 - Password hashing using scrypt with salted hashes
 - First-message restriction enforced via `canSendMessage` guard
+
+**SQL Query Optimizations**
+- `getMessagesByUser`: Uses two-step CTE to calculate `other_user_id` first, then applies `DISTINCT ON` with matching `ORDER BY` to avoid PostgreSQL syntax errors
+- `getConversation`: Uses Drizzle ORM `alias()` function from `drizzle-orm/pg-core` to create separate aliases for sender and receiver joins, preventing duplicate alias conflicts
 
 **Authentication & Security**
 - Passport.js for authentication strategy
