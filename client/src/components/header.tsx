@@ -1,8 +1,11 @@
+import { useState } from "react";
 import { Link, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "./theme-toggle";
 import { ActivityCalendar } from "./activity-calendar";
 import { MySaves } from "./my-saves";
+import { MessageInbox } from "./message-inbox";
+import { MessageDialog } from "./message-dialog";
 import { LogOut, User } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import {
@@ -17,6 +20,9 @@ import {
 export function Header() {
   const { user, logoutMutation } = useAuth();
   const [, setLocation] = useLocation();
+  const [messageDialogOpen, setMessageDialogOpen] = useState(false);
+  const [selectedUserId, setSelectedUserId] = useState<string>("");
+  const [selectedUsername, setSelectedUsername] = useState<string>("");
 
   const handleLogout = () => {
     logoutMutation.mutate(undefined, {
@@ -24,6 +30,12 @@ export function Header() {
         setLocation("/auth");
       },
     });
+  };
+
+  const handleOpenConversation = (userId: string, username: string) => {
+    setSelectedUserId(userId);
+    setSelectedUsername(username);
+    setMessageDialogOpen(true);
   };
 
   return (
@@ -69,6 +81,7 @@ export function Header() {
           {user && (
             <>
               <MySaves />
+              <MessageInbox onOpenConversation={handleOpenConversation} />
               <ActivityCalendar />
             </>
           )}
@@ -109,6 +122,15 @@ export function Header() {
           )}
         </div>
       </div>
+      
+      {user && (
+        <MessageDialog
+          open={messageDialogOpen}
+          onOpenChange={setMessageDialogOpen}
+          userId={selectedUserId}
+          username={selectedUsername}
+        />
+      )}
     </header>
   );
 }

@@ -1164,6 +1164,248 @@ Provide the response in JSON format:
     }
   });
 
+  // ===== Social Features API Routes =====
+
+  // Avatar Routes
+  // 1. POST /api/avatar - Update user avatar
+  app.post("/api/avatar", requireAuth, async (req, res, next) => {
+    try {
+      const { avatarUrl } = req.body;
+      await storage.updateUserAvatar(req.user!.id, avatarUrl);
+      res.json({ success: true, avatarUrl });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  // Message Routes
+  // 2. POST /api/messages - Send a message
+  app.post("/api/messages", requireAuth, async (req, res, next) => {
+    try {
+      const { receiverId, content } = req.body;
+      
+      // Check if blocked
+      const isBlocked = await storage.isBlocked(receiverId, req.user!.id);
+      if (isBlocked) {
+        return res.status(403).json({ error: "You cannot message this user" });
+      }
+
+      // Check if can send message (first message or ongoing conversation)
+      const canSend = await storage.canSendMessage(req.user!.id, receiverId);
+      if (!canSend) {
+        return res.status(403).json({ error: "You can only send one initial message. Wait for the user to follow you back or reply." });
+      }
+
+      const message = await storage.createMessage({
+        senderId: req.user!.id,
+        receiverId,
+        content
+      });
+
+      // Create notification for receiver
+      const sender = await storage.getUser(req.user!.id);
+      await storage.createNotification({
+        userId: receiverId,
+        type: "message",
+        content: `${sender?.username} sent you a message`,
+        relatedId: message.id
+      });
+
+      res.status(201).json(message);
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  // 3. GET /api/messages/:userId - Get conversation with a specific user
+  app.get("/api/messages/:userId", requireAuth, async (req, res, next) => {
+    try {
+      const otherUserId = req.params.userId;
+      const conversation = await storage.getConversation(req.user!.id, otherUserId);
+      
+      // Mark messages as read
+      for (const message of conversation) {
+        if (message.receiverId === req.user!.id && message.isRead === 0) {
+          await storage.markMessageAsRead(message.id);
+        }
+      }
+      
+      res.json(conversation);
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  // 4. GET /api/conversations - Get all conversations for current user
+  app.get("/api/conversations", requireAuth, async (req, res, next) => {
+    try {
+      const conversations = await storage.getMessagesByUser(req.user!.id);
+      res.json(conversations);
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  // Follow Routes
+  // 5. POST /api/follow/:userId - Follow a user
+  app.post("/api/follow/:userId", requireAuth, async (req, res, next) => {
+    try {
+      const followingId = req.params.userId;
+      
+      if (followingId === req.user!.id) {
+        return res.status(400).json({ error: "You cannot follow yourself" });
+      }
+
+      const follow = await storage.followUser({
+        followerId: req.user!.id,
+        followingId
+      });
+
+      // Create notification
+      const follower = await storage.getUser(req.user!.id);
+      await storage.createNotification({
+        userId: followingId,
+        type: "follow",
+        content: `${follower?.username} started following you`,
+        relatedId: req.user!.id
+      });
+
+      res.status(201).json(follow);
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  // 6. DELETE /api/follow/:userId - Unfollow a user
+  app.delete("/api/follow/:userId", requireAuth, async (req, res, next) => {
+    try {
+      const followingId = req.params.userId;
+      await storage.unfollowUser(req.user!.id, followingId);
+      res.json({ success: true });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  // 7. GET /api/follow/:userId/status - Check if following a user
+  app.get("/api/follow/:userId/status", requireAuth, async (req, res, next) => {
+    try {
+      const userId = req.params.userId;
+      const isFollowing = await storage.isFollowing(req.user!.id, userId);
+      const followsBack = await storage.isFollowing(userId, req.user!.id);
+      res.json({ isFollowing, followsBack });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  // 8. GET /api/followers - Get followers of current user
+  app.get("/api/followers", requireAuth, async (req, res, next) => {
+    try {
+      const followers = await storage.getFollowers(req.user!.id);
+      res.json(followers);
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  // 9. GET /api/following - Get users current user is following
+  app.get("/api/following", requireAuth, async (req, res, next) => {
+    try {
+      const following = await storage.getFollowing(req.user!.id);
+      res.json(following);
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  // Notification Routes
+  // 10. GET /api/notifications - Get notifications for current user
+  app.get("/api/notifications", requireAuth, async (req, res, next) => {
+    try {
+      const notifications = await storage.getNotificationsByUser(req.user!.id);
+      res.json(notifications);
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  // 11. PUT /api/notifications/:id/read - Mark notification as read
+  app.put("/api/notifications/:id/read", requireAuth, async (req, res, next) => {
+    try {
+      await storage.markNotificationAsRead(req.params.id);
+      res.json({ success: true });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  // 12. PUT /api/notifications/read-all - Mark all notifications as read
+  app.put("/api/notifications/read-all", requireAuth, async (req, res, next) => {
+    try {
+      await storage.markAllNotificationsAsRead(req.user!.id);
+      res.json({ success: true });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  // 13. GET /api/notifications/unread-count - Get unread notification count
+  app.get("/api/notifications/unread-count", requireAuth, async (req, res, next) => {
+    try {
+      const count = await storage.getUnreadNotificationCount(req.user!.id);
+      res.json({ count });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  // Block Routes
+  // 14. POST /api/block/:userId - Block a user
+  app.post("/api/block/:userId", requireAuth, async (req, res, next) => {
+    try {
+      const blockedId = req.params.userId;
+      
+      if (blockedId === req.user!.id) {
+        return res.status(400).json({ error: "You cannot block yourself" });
+      }
+
+      const block = await storage.blockUser({
+        blockerId: req.user!.id,
+        blockedId
+      });
+
+      // Unfollow both ways if following
+      await storage.unfollowUser(req.user!.id, blockedId);
+      await storage.unfollowUser(blockedId, req.user!.id);
+
+      res.status(201).json(block);
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  // 15. DELETE /api/block/:userId - Unblock a user
+  app.delete("/api/block/:userId", requireAuth, async (req, res, next) => {
+    try {
+      const blockedId = req.params.userId;
+      await storage.unblockUser(req.user!.id, blockedId);
+      res.json({ success: true });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  // 16. GET /api/blocked - Get blocked users list
+  app.get("/api/blocked", requireAuth, async (req, res, next) => {
+    try {
+      const blockedUsers = await storage.getBlockedUsers(req.user!.id);
+      res.json(blockedUsers);
+    } catch (error) {
+      next(error);
+    }
+  });
+
   const httpServer = createServer(app);
 
   return httpServer;
