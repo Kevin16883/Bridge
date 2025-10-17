@@ -23,7 +23,7 @@ interface Task {
 interface Project {
   id: string;
   originalDemand: string;
-  status: "active" | "completed" | "cancelled";
+  status: "draft" | "active" | "completed";
   totalBudget: string;
   createdAt: string;
   providerId: string;

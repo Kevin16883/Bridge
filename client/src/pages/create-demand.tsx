@@ -53,7 +53,18 @@ export default function CreateDemand() {
   const [currentProjectId, setCurrentProjectId] = useState<string | null>(draftId);
 
   // Load draft if draftId exists
-  const { data: draftData } = useQuery<{ originalDemand: string; id: string }>({
+  const { data: draftData } = useQuery<{ 
+    project: { id: string; originalDemand: string; status: string; totalBudget?: string };
+    tasks: Array<{
+      id: string;
+      title: string;
+      description: string;
+      skills: string[];
+      estimatedTime: string;
+      budget: string;
+      difficulty: string;
+    }>;
+  }>({
     queryKey: ["/api/projects", draftId],
     enabled: !!draftId,
   });
@@ -61,8 +72,29 @@ export default function CreateDemand() {
   useEffect(() => {
     if (draftData && draftId) {
       // Load draft data
-      setDemand(draftData.originalDemand || "");
+      setDemand(draftData.project.originalDemand || "");
       setCurrentProjectId(draftId);
+      
+      // Load tasks if they exist
+      if (draftData.tasks && draftData.tasks.length > 0) {
+        const difficultyMap: Record<string, "easy" | "medium" | "hard"> = {
+          "beginner": "easy",
+          "intermediate": "medium",
+          "advanced": "hard",
+        };
+        
+        const loadedTasks = draftData.tasks.map(task => ({
+          title: task.title,
+          description: task.description,
+          skills: task.skills,
+          estimatedTime: task.estimatedTime,
+          budget: parseFloat(task.budget.replace(/[^0-9.]/g, '')) || 100,
+          difficulty: difficultyMap[task.difficulty] || "medium",
+        }));
+        
+        setTasks(loadedTasks);
+        setStep("edit-tasks");
+      }
     }
   }, [draftData, draftId]);
 
@@ -101,8 +133,25 @@ export default function CreateDemand() {
   });
 
   const saveDraftMutation = useMutation({
-    mutationFn: async (demandText: string) => {
-      const data = { originalDemand: demandText, status: "draft" as const };
+    mutationFn: async (params: { demandText: string; tasksData?: Task[] }) => {
+      const { demandText, tasksData } = params;
+      
+      // Prepare tasks in the format expected by backend
+      const formattedTasks = tasksData && tasksData.length > 0 ? tasksData.map(task => ({
+        title: task.title,
+        description: task.description,
+        skills: task.skills,
+        estimatedTime: task.estimatedTime,
+        budget: task.budget.toString(),
+        difficulty: task.difficulty === "easy" ? "beginner" : task.difficulty === "hard" ? "advanced" : "intermediate",
+      })) : undefined;
+      
+      const data = { 
+        originalDemand: demandText, 
+        status: "draft" as const,
+        tasks: formattedTasks,
+      };
+      
       if (currentProjectId) {
         // Update existing draft
         const response = await apiRequest("PATCH", `/api/projects/${currentProjectId}`, data);
@@ -131,15 +180,21 @@ export default function CreateDemand() {
     },
   });
 
-  // Auto-save draft when demand changes (debounced)
+  // Auto-save draft when demand or tasks change (debounced)
   useEffect(() => {
     if (demand.trim().length >= 10) {
       const timer = setTimeout(() => {
-        saveDraftMutation.mutate(demand);
-      }, 2000); // 2 seconds debounce
+        saveDraftMutation.mutate({ demandText: demand, tasksData: tasks.length > 0 ? tasks : undefined });
+      }, 3000); // 3 seconds debounce
       return () => clearTimeout(timer);
     }
-  }, [demand]);
+  }, [demand, tasks]);
+  
+  const handleSaveDraft = () => {
+    if (demand.trim().length >= 10) {
+      saveDraftMutation.mutate({ demandText: demand, tasksData: tasks.length > 0 ? tasks : undefined });
+    }
+  };
 
   const handleAnalyzeWithAI = () => {
     if (demand.trim().length < 10) return;

@@ -57,6 +57,7 @@ export interface IStorage {
   searchTasksForPerformer(performerId: string, keyword?: string, skills?: string[]): Promise<Task[]>;
   updateTaskStatus(id: string, status: "pending" | "matched" | "in_progress" | "completed"): Promise<void>;
   matchTaskToPerformer(taskId: string, performerId: string): Promise<void>;
+  deleteTask(id: string): Promise<void>;
   
   // Task submission operations
   createTaskSubmission(submission: InsertTaskSubmission): Promise<TaskSubmission>;
@@ -291,6 +292,10 @@ export class DatabaseStorage implements IStorage {
       matchedPerformerId: performerId,
       status: "matched"
     }).where(eq(tasks.id, taskId));
+  }
+
+  async deleteTask(id: string): Promise<void> {
+    await db.delete(tasks).where(eq(tasks.id, id));
   }
 
   // Task submission operations

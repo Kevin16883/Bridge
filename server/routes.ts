@@ -213,9 +213,40 @@ export async function registerRoutes(app: Express): Promise<Server> {
         originalDemand: z.string().optional(),
         status: z.enum(["draft", "active", "completed"]).optional(),
         totalBudget: z.string().optional(),
+        tasks: z.array(insertTaskSchema.omit({ id: true, projectId: true })).optional(),
       }).parse(req.body);
 
-      await storage.updateProject(req.params.id, validatedUpdates);
+      await storage.updateProject(req.params.id, {
+        originalDemand: validatedUpdates.originalDemand,
+        status: validatedUpdates.status,
+        totalBudget: validatedUpdates.totalBudget,
+      });
+      
+      // Update tasks if provided
+      if (validatedUpdates.tasks) {
+        // Delete existing tasks for this project
+        const existingTasks = await storage.getTasksByProject(req.params.id);
+        for (const task of existingTasks) {
+          await storage.deleteTask(task.id);
+        }
+        
+        // Create new tasks
+        if (validatedUpdates.tasks.length > 0) {
+          await storage.createTasks(
+            validatedUpdates.tasks.map((task: any) => ({
+              projectId: req.params.id,
+              title: task.title,
+              description: task.description,
+              skills: task.skills,
+              estimatedTime: task.estimatedTime,
+              budget: task.budget,
+              difficulty: task.difficulty,
+              status: "pending" as const,
+            }))
+          );
+        }
+      }
+      
       const updatedProject = await storage.getProject(req.params.id);
       
       res.json(updatedProject);
