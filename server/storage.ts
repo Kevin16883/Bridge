@@ -1,6 +1,7 @@
 import { 
   users, projects, tasks, taskSubmissions, badges, userBadges, taskApplications, timeTracking, weeklyReports,
   questions, comments, commentVotes, savedComments, savedQuestions, questionAnswers,
+  messages, follows, notifications, blockedUsers,
   type User, type InsertUser,
   type Project, type InsertProject,
   type Task, type InsertTask,
@@ -15,7 +16,11 @@ import {
   type CommentVote, type InsertCommentVote,
   type SavedComment, type InsertSavedComment,
   type SavedQuestion, type InsertSavedQuestion,
-  type QuestionAnswer, type InsertQuestionAnswer
+  type QuestionAnswer, type InsertQuestionAnswer,
+  type Message, type InsertMessage,
+  type Follow, type InsertFollow,
+  type Notification, type InsertNotification,
+  type BlockedUser, type InsertBlockedUser
 } from "@shared/schema";
 import { db, pool } from "./db";
 import { eq, and, desc, sql } from "drizzle-orm";
@@ -108,6 +113,36 @@ export interface IStorage {
   // Question answer operations
   createQuestionAnswer(answer: InsertQuestionAnswer): Promise<QuestionAnswer>;
   getQuestionAnswer(questionId: string, userId: string): Promise<QuestionAnswer | undefined>;
+  
+  // Avatar operations
+  updateUserAvatar(userId: string, avatarUrl: string): Promise<void>;
+  
+  // Message operations
+  createMessage(message: InsertMessage): Promise<Message>;
+  getConversation(userId1: string, userId2: string): Promise<Array<Message & { sender: User; receiver: User }>>;
+  getMessagesByUser(userId: string): Promise<Array<{ otherUser: User; lastMessage: Message; unreadCount: number }>>;
+  markMessageAsRead(messageId: string): Promise<void>;
+  canSendMessage(senderId: string, receiverId: string): Promise<boolean>;
+  
+  // Follow operations
+  followUser(follow: InsertFollow): Promise<Follow>;
+  unfollowUser(followerId: string, followingId: string): Promise<void>;
+  getFollowers(userId: string): Promise<Array<Follow & { follower: User }>>;
+  getFollowing(userId: string): Promise<Array<Follow & { following: User }>>;
+  isFollowing(followerId: string, followingId: string): Promise<boolean>;
+  
+  // Notification operations
+  createNotification(notification: InsertNotification): Promise<Notification>;
+  getNotificationsByUser(userId: string): Promise<Notification[]>;
+  markNotificationAsRead(notificationId: string): Promise<void>;
+  markAllNotificationsAsRead(userId: string): Promise<void>;
+  getUnreadNotificationCount(userId: string): Promise<number>;
+  
+  // Block operations
+  blockUser(block: InsertBlockedUser): Promise<BlockedUser>;
+  unblockUser(blockerId: string, blockedId: string): Promise<void>;
+  getBlockedUsers(userId: string): Promise<Array<BlockedUser & { blocked: User }>>;
+  isBlocked(blockerId: string, blockedId: string): Promise<boolean>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -587,6 +622,250 @@ export class DatabaseStorage implements IStorage {
       )
     );
     return answer || undefined;
+  }
+
+  // Avatar operations
+  async updateUserAvatar(userId: string, avatarUrl: string): Promise<void> {
+    await db.update(users).set({ avatarUrl }).where(eq(users.id, userId));
+  }
+
+  // Message operations
+  async createMessage(insertMessage: InsertMessage): Promise<Message> {
+    const [message] = await db.insert(messages).values(insertMessage).returning();
+    return message;
+  }
+
+  async getConversation(userId1: string, userId2: string): Promise<Array<Message & { sender: User; receiver: User }>> {
+    const results = await db
+      .select()
+      .from(messages)
+      .leftJoin(users as any, eq(messages.senderId, users.id))
+      .leftJoin(users as any, eq(messages.receiverId, users.id))
+      .where(
+        sql`(${messages.senderId} = ${userId1} AND ${messages.receiverId} = ${userId2}) OR (${messages.senderId} = ${userId2} AND ${messages.receiverId} = ${userId1})`
+      )
+      .orderBy(messages.createdAt);
+    
+    return results.map(r => ({
+      ...r.messages,
+      sender: r.users!,
+      receiver: r.users!
+    }));
+  }
+
+  async getMessagesByUser(userId: string): Promise<Array<{ otherUser: User; lastMessage: Message; unreadCount: number }>> {
+    // Get distinct conversations with last message
+    const conversations = await db.execute(sql`
+      WITH last_messages AS (
+        SELECT DISTINCT ON (
+          CASE 
+            WHEN sender_id = ${userId} THEN receiver_id
+            ELSE sender_id
+          END
+        )
+          *,
+          CASE 
+            WHEN sender_id = ${userId} THEN receiver_id
+            ELSE sender_id
+          END as other_user_id
+        FROM messages
+        WHERE sender_id = ${userId} OR receiver_id = ${userId}
+        ORDER BY 
+          CASE 
+            WHEN sender_id = ${userId} THEN receiver_id
+            ELSE sender_id
+          END,
+          created_at DESC
+      )
+      SELECT 
+        lm.*,
+        u.id as user_id, u.username, u.role, u.email, u.avatar_url, u.created_at as user_created_at,
+        (SELECT COUNT(*) FROM messages m 
+         WHERE m.sender_id = lm.other_user_id 
+         AND m.receiver_id = ${userId} 
+         AND m.is_read = 0) as unread_count
+      FROM last_messages lm
+      JOIN users u ON u.id = lm.other_user_id
+      ORDER BY lm.created_at DESC
+    `);
+    
+    return conversations.rows.map((row: any) => ({
+      otherUser: {
+        id: row.user_id,
+        username: row.username,
+        role: row.role,
+        email: row.email,
+        avatarUrl: row.avatar_url,
+        createdAt: row.user_created_at,
+        password: '' // Don't expose password
+      },
+      lastMessage: {
+        id: row.id,
+        senderId: row.sender_id,
+        receiverId: row.receiver_id,
+        content: row.content,
+        isRead: row.is_read,
+        createdAt: row.created_at
+      },
+      unreadCount: parseInt(row.unread_count) || 0
+    }));
+  }
+
+  async markMessageAsRead(messageId: string): Promise<void> {
+    await db.update(messages).set({ isRead: 1 }).where(eq(messages.id, messageId));
+  }
+
+  async canSendMessage(senderId: string, receiverId: string): Promise<boolean> {
+    // Check if blocked
+    const blocked = await this.isBlocked(receiverId, senderId);
+    if (blocked) return false;
+
+    // Check if they're following each other or have existing conversation
+    const isFollowing = await this.isFollowing(senderId, receiverId);
+    const followsBack = await this.isFollowing(receiverId, senderId);
+    
+    // Check for existing conversation
+    const [existingMessage] = await db
+      .select()
+      .from(messages)
+      .where(
+        sql`(${messages.senderId} = ${senderId} AND ${messages.receiverId} = ${receiverId}) OR (${messages.senderId} = ${receiverId} AND ${messages.receiverId} = ${senderId})`
+      )
+      .limit(1);
+
+    return isFollowing || followsBack || !!existingMessage;
+  }
+
+  // Follow operations
+  async followUser(insertFollow: InsertFollow): Promise<Follow> {
+    const [follow] = await db.insert(follows).values(insertFollow)
+      .onConflictDoNothing()
+      .returning();
+    return follow;
+  }
+
+  async unfollowUser(followerId: string, followingId: string): Promise<void> {
+    await db.delete(follows).where(
+      and(
+        eq(follows.followerId, followerId),
+        eq(follows.followingId, followingId)
+      )
+    );
+  }
+
+  async getFollowers(userId: string): Promise<Array<Follow & { follower: User }>> {
+    const results = await db
+      .select()
+      .from(follows)
+      .leftJoin(users, eq(follows.followerId, users.id))
+      .where(eq(follows.followingId, userId))
+      .orderBy(desc(follows.createdAt));
+    
+    return results.map(r => ({
+      ...r.follows,
+      follower: r.users!
+    }));
+  }
+
+  async getFollowing(userId: string): Promise<Array<Follow & { following: User }>> {
+    const results = await db
+      .select()
+      .from(follows)
+      .leftJoin(users, eq(follows.followingId, users.id))
+      .where(eq(follows.followerId, userId))
+      .orderBy(desc(follows.createdAt));
+    
+    return results.map(r => ({
+      ...r.follows,
+      following: r.users!
+    }));
+  }
+
+  async isFollowing(followerId: string, followingId: string): Promise<boolean> {
+    const [follow] = await db.select().from(follows).where(
+      and(
+        eq(follows.followerId, followerId),
+        eq(follows.followingId, followingId)
+      )
+    );
+    return !!follow;
+  }
+
+  // Notification operations
+  async createNotification(insertNotification: InsertNotification): Promise<Notification> {
+    const [notification] = await db.insert(notifications).values(insertNotification).returning();
+    return notification;
+  }
+
+  async getNotificationsByUser(userId: string): Promise<Notification[]> {
+    return await db
+      .select()
+      .from(notifications)
+      .where(eq(notifications.userId, userId))
+      .orderBy(desc(notifications.createdAt))
+      .limit(50);
+  }
+
+  async markNotificationAsRead(notificationId: string): Promise<void> {
+    await db.update(notifications).set({ isRead: 1 }).where(eq(notifications.id, notificationId));
+  }
+
+  async markAllNotificationsAsRead(userId: string): Promise<void> {
+    await db.update(notifications).set({ isRead: 1 }).where(eq(notifications.userId, userId));
+  }
+
+  async getUnreadNotificationCount(userId: string): Promise<number> {
+    const [result] = await db
+      .select({ count: sql<number>`count(*)` })
+      .from(notifications)
+      .where(
+        and(
+          eq(notifications.userId, userId),
+          eq(notifications.isRead, 0)
+        )
+      );
+    return result?.count || 0;
+  }
+
+  // Block operations
+  async blockUser(insertBlock: InsertBlockedUser): Promise<BlockedUser> {
+    const [block] = await db.insert(blockedUsers).values(insertBlock)
+      .onConflictDoNothing()
+      .returning();
+    return block;
+  }
+
+  async unblockUser(blockerId: string, blockedId: string): Promise<void> {
+    await db.delete(blockedUsers).where(
+      and(
+        eq(blockedUsers.blockerId, blockerId),
+        eq(blockedUsers.blockedId, blockedId)
+      )
+    );
+  }
+
+  async getBlockedUsers(userId: string): Promise<Array<BlockedUser & { blocked: User }>> {
+    const results = await db
+      .select()
+      .from(blockedUsers)
+      .leftJoin(users, eq(blockedUsers.blockedId, users.id))
+      .where(eq(blockedUsers.blockerId, userId))
+      .orderBy(desc(blockedUsers.createdAt));
+    
+    return results.map(r => ({
+      ...r.blocked_users,
+      blocked: r.users!
+    }));
+  }
+
+  async isBlocked(blockerId: string, blockedId: string): Promise<boolean> {
+    const [block] = await db.select().from(blockedUsers).where(
+      and(
+        eq(blockedUsers.blockerId, blockerId),
+        eq(blockedUsers.blockedId, blockedId)
+      )
+    );
+    return !!block;
   }
 }
 
