@@ -369,3 +369,24 @@ export const insertBlockedUserSchema = createInsertSchema(blockedUsers).omit({
 
 export type InsertBlockedUser = z.infer<typeof insertBlockedUserSchema>;
 export type BlockedUser = typeof blockedUsers.$inferSelect;
+
+// User ratings table (for both providers and performers)
+export const userRatings = pgTable("user_ratings", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  ratedUserId: varchar("rated_user_id").notNull().references(() => users.id), // User being rated
+  raterUserId: varchar("rater_user_id").notNull().references(() => users.id), // User giving the rating
+  taskId: varchar("task_id").notNull().references(() => tasks.id), // Task this rating is for
+  rating: integer("rating").notNull(), // 1-5 stars
+  comment: text("comment"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => ({
+  uniqueRating: sql`UNIQUE (${table.raterUserId}, ${table.taskId}, ${table.ratedUserId})`,
+}));
+
+export const insertUserRatingSchema = createInsertSchema(userRatings).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type InsertUserRating = z.infer<typeof insertUserRatingSchema>;
+export type UserRating = typeof userRatings.$inferSelect;

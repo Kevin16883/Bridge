@@ -153,6 +153,19 @@ export interface IStorage {
   unblockUser(blockerId: string, blockedId: string): Promise<void>;
   getBlockedUsers(userId: string): Promise<Array<BlockedUser & { blocked: User }>>;
   isBlocked(blockerId: string, blockedId: string): Promise<boolean>;
+  
+  // User profile statistics
+  getUserStats(userId: string): Promise<{
+    user: User;
+    totalProjectsPublished?: number;
+    totalTasksPublished?: number;
+    totalTasksCompleted?: number;
+    averageRating?: number;
+    totalRatings?: number;
+    badges: Array<UserBadge & { badge: Badge }>;
+    recentProjects?: Project[];
+    recentTasks?: Task[];
+  }>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -985,6 +998,102 @@ export class DatabaseStorage implements IStorage {
       )
     );
     return !!block;
+  }
+
+  async getUserStats(userId: string): Promise<{
+    user: User;
+    totalProjectsPublished?: number;
+    totalTasksPublished?: number;
+    totalTasksCompleted?: number;
+    averageRating?: number;
+    totalRatings?: number;
+    badges: Array<UserBadge & { badge: Badge }>;
+    recentProjects?: Project[];
+    recentTasks?: Task[];
+  }> {
+    // Get user
+    const user = await this.getUser(userId);
+    if (!user) {
+      throw new Error("User not found");
+    }
+
+    // Get user badges
+    const userBadgesData = await this.getUserBadges(userId);
+
+    const stats: any = {
+      user,
+      badges: userBadgesData,
+    };
+
+    // Provider-specific stats
+    if (user.role === "provider") {
+      // Count published projects
+      const publishedProjects = await db
+        .select()
+        .from(projects)
+        .where(
+          and(
+            eq(projects.providerId, userId),
+            eq(projects.status, "active")
+          )
+        );
+      stats.totalProjectsPublished = publishedProjects.length;
+
+      // Count published tasks
+      const providerProjects = await db
+        .select()
+        .from(projects)
+        .where(eq(projects.providerId, userId));
+      
+      const projectIds = providerProjects.map(p => p.id);
+      if (projectIds.length > 0) {
+        const publishedTasks = await db
+          .select()
+          .from(tasks)
+          .where(
+            and(
+              sql`${tasks.projectId} = ANY(${projectIds})`,
+              eq(tasks.status, "pending")
+            )
+          );
+        stats.totalTasksPublished = publishedTasks.length;
+      } else {
+        stats.totalTasksPublished = 0;
+      }
+
+      // Get recent projects
+      stats.recentProjects = await db
+        .select()
+        .from(projects)
+        .where(eq(projects.providerId, userId))
+        .orderBy(desc(projects.createdAt))
+        .limit(5);
+    }
+
+    // Performer-specific stats
+    if (user.role === "performer") {
+      // Count completed tasks
+      const completedTasks = await db
+        .select()
+        .from(tasks)
+        .where(
+          and(
+            eq(tasks.matchedPerformerId, userId),
+            eq(tasks.status, "completed")
+          )
+        );
+      stats.totalTasksCompleted = completedTasks.length;
+
+      // Get recent tasks
+      stats.recentTasks = await db
+        .select()
+        .from(tasks)
+        .where(eq(tasks.matchedPerformerId, userId))
+        .orderBy(desc(tasks.createdAt))
+        .limit(5);
+    }
+
+    return stats;
   }
 }
 

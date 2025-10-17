@@ -1606,6 +1606,17 @@ Provide the response in JSON format:
     }
   });
 
+  // 18. GET /api/users/:userId/stats - Get user profile statistics
+  app.get("/api/users/:userId/stats", requireAuth, async (req, res, next) => {
+    try {
+      const userId = req.params.userId;
+      const stats = await storage.getUserStats(userId);
+      res.json(stats);
+    } catch (error) {
+      next(error);
+    }
+  });
+
   const httpServer = createServer(app);
 
   return httpServer;
