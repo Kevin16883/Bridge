@@ -40,6 +40,12 @@ Preferred communication style: Simple, everyday language.
 - Reusable component composition (cards, badges, buttons with variants)
 - Progressive disclosure in UI (showing complexity only when needed)
 
+**Social Features UI Components**
+- MessageInbox: Message center component in Header with "Private Messages" and "Notifications" tabs
+- MessageDialog: Private messaging dialog with conversation view and send functionality
+- UserAvatar: Reusable avatar component with image display or username initials fallback
+- Notification badge: Displays unread message/notification count in Header
+
 ### Backend Architecture
 
 **Server Framework**
@@ -50,8 +56,10 @@ Preferred communication style: Simple, everyday language.
 **API Design**
 - RESTful endpoints prefixed with `/api`
 - Authentication endpoints: `/api/register`, `/api/login`, `/api/logout`, `/api/user`
+- Social feature endpoints: `/api/avatar`, `/api/messages`, `/api/conversations`, `/api/follow`, `/api/notifications`, `/api/block`
 - Session management with PostgreSQL session store
 - Password hashing using scrypt with salted hashes
+- First-message restriction enforced via `canSendMessage` guard
 
 **Authentication & Security**
 - Passport.js for authentication strategy
@@ -69,13 +77,17 @@ Preferred communication style: Simple, everyday language.
 **Database Schema (PostgreSQL)**
 
 Core entities:
-- **Users**: Authentication and role designation (provider/performer)
+- **Users**: Authentication, role designation (provider/performer), and avatar URL
 - **Projects**: Demand provider's original requests with budget and status tracking
 - **Tasks**: Decomposed micro-tasks with skills, budget, time estimates, and matching status
 - **TaskSubmissions**: Performer work submissions with provider feedback and approval status
 - **Badges**: Achievement badges with categories (completion, quality, speed, specialty)
 - **UserBadges**: Records of badges earned by performers for completed tasks
 - **TaskApplications**: Performer applications and assignment records
+- **Messages**: Private messaging system with sender/receiver and read status
+- **Follows**: User follow relationships for social connections
+- **Notifications**: System notifications for messages, follows, and other events
+- **BlockedUsers**: User blocking system for privacy control
 
 **Data Relationships**
 - One-to-many: Users → Projects, Projects → Tasks, Tasks → TaskSubmissions
