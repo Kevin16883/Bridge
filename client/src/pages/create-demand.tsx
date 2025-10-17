@@ -61,7 +61,7 @@ export default function CreateDemand() {
       description: string;
       skills: string[];
       estimatedTime: string;
-      budget: string;
+      budget: number | string;
       difficulty: string;
     }>;
   }>({
@@ -88,7 +88,9 @@ export default function CreateDemand() {
           description: task.description,
           skills: task.skills,
           estimatedTime: task.estimatedTime,
-          budget: parseFloat(task.budget.replace(/[^0-9.]/g, '')) || 100,
+          budget: typeof task.budget === 'number' 
+            ? task.budget 
+            : parseFloat(String(task.budget).replace(/[^0-9.]/g, '')) || 100,
           difficulty: difficultyMap[task.difficulty] || "medium",
         }));
         
