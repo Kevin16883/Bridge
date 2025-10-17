@@ -24,6 +24,7 @@ export function Header() {
   const [messageDialogOpen, setMessageDialogOpen] = useState(false);
   const [selectedUserId, setSelectedUserId] = useState<string>("");
   const [selectedUsername, setSelectedUsername] = useState<string>("");
+  const [selectedAvatarUrl, setSelectedAvatarUrl] = useState<string | null>(null);
 
   const handleLogout = () => {
     logoutMutation.mutate(undefined, {
@@ -33,9 +34,10 @@ export function Header() {
     });
   };
 
-  const handleOpenConversation = (userId: string, username: string) => {
+  const handleOpenConversation = (userId: string, username: string, avatarUrl?: string | null) => {
     setSelectedUserId(userId);
     setSelectedUsername(username);
+    setSelectedAvatarUrl(avatarUrl || null);
     setMessageDialogOpen(true);
   };
 
@@ -134,6 +136,7 @@ export function Header() {
           onOpenChange={setMessageDialogOpen}
           userId={selectedUserId}
           username={selectedUsername}
+          avatarUrl={selectedAvatarUrl}
         />
       )}
     </header>

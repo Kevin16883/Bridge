@@ -38,9 +38,10 @@ type MessageDialogProps = {
   onOpenChange: (open: boolean) => void;
   userId: string;
   username: string;
+  avatarUrl?: string | null;
 };
 
-export function MessageDialog({ open, onOpenChange, userId, username }: MessageDialogProps) {
+export function MessageDialog({ open, onOpenChange, userId, username, avatarUrl }: MessageDialogProps) {
   const { user } = useAuth();
   const { toast } = useToast();
   const [message, setMessage] = useState("");
@@ -108,7 +109,7 @@ export function MessageDialog({ open, onOpenChange, userId, username }: MessageD
         <DialogHeader className="px-6 py-4 border-b">
           <DialogTitle className="flex items-center gap-3">
             <UserAvatar 
-              avatarUrl={null}
+              avatarUrl={avatarUrl}
               username={username}
               size="md"
             />

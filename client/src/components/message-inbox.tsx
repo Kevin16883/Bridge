@@ -41,7 +41,7 @@ type Notification = {
   createdAt: string;
 };
 
-export function MessageInbox({ onOpenConversation }: { onOpenConversation?: (userId: string, username: string) => void }) {
+export function MessageInbox({ onOpenConversation }: { onOpenConversation?: (userId: string, username: string, avatarUrl?: string | null) => void }) {
   const [open, setOpen] = useState(false);
 
   // Fetch conversations
@@ -83,9 +83,9 @@ export function MessageInbox({ onOpenConversation }: { onOpenConversation?: (use
 
   const totalUnread = (conversations?.reduce((sum, c) => sum + c.unreadCount, 0) || 0) + (unreadData?.count || 0);
 
-  const handleConversationClick = (userId: string, username: string) => {
+  const handleConversationClick = (userId: string, username: string, avatarUrl?: string | null) => {
     setOpen(false);
-    onOpenConversation?.(userId, username);
+    onOpenConversation?.(userId, username, avatarUrl);
   };
 
   const handleNotificationClick = (notification: Notification) => {
@@ -148,7 +148,7 @@ export function MessageInbox({ onOpenConversation }: { onOpenConversation?: (use
                     <div
                       key={conv.otherUser.id}
                       className="flex items-start gap-3 p-3 rounded-md hover-elevate cursor-pointer"
-                      onClick={() => handleConversationClick(conv.otherUser.id, conv.otherUser.username)}
+                      onClick={() => handleConversationClick(conv.otherUser.id, conv.otherUser.username, conv.otherUser.avatarUrl)}
                       data-testid={`conversation-${conv.otherUser.id}`}
                     >
                       <UserAvatar 

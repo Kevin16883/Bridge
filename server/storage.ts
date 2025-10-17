@@ -720,20 +720,42 @@ export class DatabaseStorage implements IStorage {
     const blocked = await this.isBlocked(receiverId, senderId);
     if (blocked) return false;
 
-    // Check if they're following each other or have existing conversation
+    // Check if they're following each other
     const isFollowing = await this.isFollowing(senderId, receiverId);
     const followsBack = await this.isFollowing(receiverId, senderId);
     
-    // Check for existing conversation
-    const [existingMessage] = await db
+    // If either follows, allow messaging
+    if (isFollowing || followsBack) return true;
+    
+    // Check if receiver has replied (sent a message back)
+    const [receiverReply] = await db
       .select()
       .from(messages)
       .where(
-        sql`(${messages.senderId} = ${senderId} AND ${messages.receiverId} = ${receiverId}) OR (${messages.senderId} = ${receiverId} AND ${messages.receiverId} = ${senderId})`
+        and(
+          eq(messages.senderId, receiverId),
+          eq(messages.receiverId, senderId)
+        )
       )
       .limit(1);
-
-    return isFollowing || followsBack || !!existingMessage;
+    
+    // If receiver has replied, allow messaging
+    if (receiverReply) return true;
+    
+    // Check if sender has already sent a message
+    const [senderMessage] = await db
+      .select()
+      .from(messages)
+      .where(
+        and(
+          eq(messages.senderId, senderId),
+          eq(messages.receiverId, receiverId)
+        )
+      )
+      .limit(1);
+    
+    // If sender hasn't sent a message yet, allow the first one
+    return !senderMessage;
   }
 
   // Follow operations
