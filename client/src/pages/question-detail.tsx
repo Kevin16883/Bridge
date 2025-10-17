@@ -9,6 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Separator } from "@/components/ui/separator";
 import { UserAvatar } from "@/components/user-avatar";
 import { UserProfileDialog } from "@/components/user-profile-dialog";
+import { MessageDialog } from "@/components/message-dialog";
 import { Eye, ThumbsUp, ThumbsDown, Bookmark, MessageSquare, Sparkles, ArrowLeft } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
@@ -70,6 +71,8 @@ export default function QuestionDetail() {
   const questionId = params?.id;
   const [commentContent, setCommentContent] = useState("");
   const [selectedUser, setSelectedUser] = useState<{ id: string; username: string; avatarUrl?: string | null } | null>(null);
+  const [messageDialogOpen, setMessageDialogOpen] = useState(false);
+  const [messageTargetUser, setMessageTargetUser] = useState<{ id: string; username: string; avatarUrl?: string | null } | null>(null);
   const { toast } = useToast();
 
   const { data: question, isLoading: questionLoading } = useQuery<Question>({
@@ -439,6 +442,20 @@ export default function QuestionDetail() {
           userId={selectedUser.id}
           username={selectedUser.username}
           avatarUrl={selectedUser.avatarUrl}
+          onMessageClick={() => {
+            setMessageTargetUser(selectedUser);
+            setMessageDialogOpen(true);
+          }}
+        />
+      )}
+
+      {messageTargetUser && (
+        <MessageDialog
+          open={messageDialogOpen}
+          onOpenChange={setMessageDialogOpen}
+          userId={messageTargetUser.id}
+          username={messageTargetUser.username}
+          avatarUrl={messageTargetUser.avatarUrl}
         />
       )}
     </div>

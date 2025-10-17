@@ -23,7 +23,8 @@ import {
   type BlockedUser, type InsertBlockedUser
 } from "@shared/schema";
 import { db, pool } from "./db";
-import { eq, and, desc, sql, alias } from "drizzle-orm";
+import { eq, and, desc, sql } from "drizzle-orm";
+import { alias } from "drizzle-orm/pg-core";
 import session from "express-session";
 import connectPg from "connect-pg-simple";
 

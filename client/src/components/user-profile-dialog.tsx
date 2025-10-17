@@ -9,7 +9,6 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { UserAvatar } from "@/components/user-avatar";
-import { MessageDialog } from "@/components/message-dialog";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { UserPlus, UserMinus, MessageSquare, Ban, ShieldOff } from "lucide-react";
@@ -20,6 +19,7 @@ interface UserProfileDialogProps {
   avatarUrl?: string | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  onMessageClick?: () => void;
 }
 
 export function UserProfileDialog({
@@ -28,9 +28,9 @@ export function UserProfileDialog({
   avatarUrl,
   open,
   onOpenChange,
+  onMessageClick,
 }: UserProfileDialogProps) {
   const { toast } = useToast();
-  const [messageDialogOpen, setMessageDialogOpen] = useState(false);
 
   // Check if following
   const { data: followStatus } = useQuery<{ isFollowing: boolean; followsBack: boolean }>({
@@ -96,12 +96,11 @@ export function UserProfileDialog({
   });
 
   const handleMessage = () => {
-    // First open the message dialog
-    setMessageDialogOpen(true);
-    // Then close the profile dialog with a slight delay to ensure smooth transition
-    setTimeout(() => {
-      onOpenChange(false);
-    }, 100);
+    if (onMessageClick) {
+      onMessageClick();
+    }
+    // Close the profile dialog
+    onOpenChange(false);
   };
 
   return (
@@ -180,14 +179,6 @@ export function UserProfileDialog({
           </div>
         </DialogContent>
       </Dialog>
-
-      <MessageDialog
-        open={messageDialogOpen}
-        onOpenChange={setMessageDialogOpen}
-        userId={userId}
-        username={username}
-        avatarUrl={avatarUrl}
-      />
     </>
   );
 }
