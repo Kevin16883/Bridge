@@ -12,7 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { UserAvatar } from "./user-avatar";
 import { Mail, Bell, MessageSquare } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { queryClient, apiRequest } from "@/lib/queryClient";
@@ -151,11 +151,11 @@ export function MessageInbox({ onOpenConversation }: { onOpenConversation?: (use
                       onClick={() => handleConversationClick(conv.otherUser.id, conv.otherUser.username)}
                       data-testid={`conversation-${conv.otherUser.id}`}
                     >
-                      <Avatar>
-                        <AvatarFallback>
-                          {conv.otherUser.username.substring(0, 2).toUpperCase()}
-                        </AvatarFallback>
-                      </Avatar>
+                      <UserAvatar 
+                        avatarUrl={conv.otherUser.avatarUrl}
+                        username={conv.otherUser.username}
+                        size="md"
+                      />
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center justify-between gap-2">
                           <p className="font-medium text-sm truncate">{conv.otherUser.username}</p>

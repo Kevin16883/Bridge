@@ -6,7 +6,8 @@ import { ActivityCalendar } from "./activity-calendar";
 import { MySaves } from "./my-saves";
 import { MessageInbox } from "./message-inbox";
 import { MessageDialog } from "./message-dialog";
-import { LogOut, User } from "lucide-react";
+import { UserAvatar } from "./user-avatar";
+import { LogOut } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import {
   DropdownMenu,
@@ -90,7 +91,11 @@ export function Header() {
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" className="gap-2" data-testid="button-user-menu">
-                  <User className="h-4 w-4" />
+                  <UserAvatar 
+                    avatarUrl={user.avatarUrl} 
+                    username={user.username} 
+                    size="sm"
+                  />
                   <span className="hidden md:inline">{user.username}</span>
                 </Button>
               </DropdownMenuTrigger>

@@ -9,7 +9,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { UserAvatar } from "./user-avatar";
 import { Send } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { queryClient, apiRequest } from "@/lib/queryClient";
@@ -107,11 +107,11 @@ export function MessageDialog({ open, onOpenChange, userId, username }: MessageD
       <DialogContent className="sm:max-w-[600px] h-[600px] flex flex-col p-0">
         <DialogHeader className="px-6 py-4 border-b">
           <DialogTitle className="flex items-center gap-3">
-            <Avatar>
-              <AvatarFallback>
-                {username.substring(0, 2).toUpperCase()}
-              </AvatarFallback>
-            </Avatar>
+            <UserAvatar 
+              avatarUrl={null}
+              username={username}
+              size="md"
+            />
             <span>{username}</span>
           </DialogTitle>
         </DialogHeader>
