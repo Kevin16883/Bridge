@@ -70,11 +70,25 @@ export default function QuestionDetail() {
 
   const { data: question, isLoading: questionLoading } = useQuery<Question>({
     queryKey: ["/api/questions", questionId],
+    queryFn: async () => {
+      const response = await fetch(`/api/questions/${questionId}`, {
+        credentials: "include",
+      });
+      if (!response.ok) throw new Error("Failed to fetch question");
+      return response.json();
+    },
     enabled: !!questionId,
   });
 
   const { data: comments, isLoading: commentsLoading } = useQuery<Comment[]>({
     queryKey: ["/api/questions", questionId, "comments"],
+    queryFn: async () => {
+      const response = await fetch(`/api/questions/${questionId}/comments`, {
+        credentials: "include",
+      });
+      if (!response.ok) throw new Error("Failed to fetch comments");
+      return response.json();
+    },
     enabled: !!questionId,
   });
 
