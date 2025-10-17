@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "wouter";
-import { Plus, Briefcase, Clock, CheckCircle2, XCircle, BarChart3, UserCheck } from "lucide-react";
+import { Plus, Briefcase, Clock, CheckCircle2, XCircle, BarChart3, UserCheck, FileText } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -9,7 +9,7 @@ import { Header } from "@/components/header";
 interface Project {
   id: string;
   originalDemand: string;
-  status: "active" | "completed" | "cancelled";
+  status: "draft" | "active" | "completed";
   totalBudget: string;
   createdAt: string;
 }
@@ -24,21 +24,21 @@ export default function ProviderDashboard() {
   });
 
   const statusIcons = {
+    draft: FileText,
     active: Clock,
     completed: CheckCircle2,
-    cancelled: XCircle,
   };
 
   const statusVariants = {
+    draft: "outline" as const,
     active: "default" as const,
     completed: "secondary" as const,
-    cancelled: "destructive" as const,
   };
 
   const statusColors = {
+    draft: "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300 border-gray-200 dark:border-gray-700",
     active: "bg-primary/10 text-primary border-primary/30",
     completed: "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 border-green-200 dark:border-green-800",
-    cancelled: "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400 border-red-200 dark:border-red-800",
   };
 
   const activeProjects = projects?.filter(p => p.status === "active").length || 0;
@@ -162,7 +162,7 @@ export default function ProviderDashboard() {
                             <div className="text-sm text-muted-foreground">
                               Total Budget: <span className="font-semibold text-foreground">{project.totalBudget}</span>
                             </div>
-                            <Link href={`/projects/${project.id}`}>
+                            <Link to={`/projects/${project.id}`}>
                               <Button variant="outline" size="sm" data-testid={`button-view-${project.id}`}>
                                 View Details
                               </Button>
