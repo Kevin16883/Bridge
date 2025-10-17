@@ -45,6 +45,7 @@ export interface IStorage {
   searchProjects(providerId: string, keyword?: string): Promise<Project[]>;
   updateProjectStatus(id: string, status: "draft" | "active" | "completed"): Promise<void>;
   updateProject(id: string, updates: Partial<InsertProject>): Promise<void>;
+  deleteProject(id: string): Promise<void>;
   
   // Task operations
   createTask(task: InsertTask): Promise<Task>;
@@ -212,6 +213,10 @@ export class DatabaseStorage implements IStorage {
 
   async updateProject(id: string, updates: Partial<InsertProject>): Promise<void> {
     await db.update(projects).set(updates).where(eq(projects.id, id));
+  }
+
+  async deleteProject(id: string): Promise<void> {
+    await db.delete(projects).where(eq(projects.id, id));
   }
 
   // Task operations

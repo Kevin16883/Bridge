@@ -278,6 +278,39 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Delete project (provider only, own projects, draft status only)
+  app.delete("/api/projects/:id", requireProvider, async (req, res, next) => {
+    try {
+      const project = await storage.getProject(req.params.id);
+      if (!project) {
+        return res.status(404).json({ error: "Project not found" });
+      }
+
+      // Check ownership
+      if (project.providerId !== req.user!.id) {
+        return res.status(403).json({ error: "Access denied" });
+      }
+
+      // Only allow deleting draft projects
+      if (project.status !== "draft") {
+        return res.status(400).json({ error: "Only draft projects can be deleted" });
+      }
+
+      // Delete associated tasks first
+      const tasks = await storage.getTasksByProject(req.params.id);
+      for (const task of tasks) {
+        await storage.deleteTask(task.id);
+      }
+
+      // Delete the project
+      await storage.deleteProject(req.params.id);
+      
+      res.json({ success: true });
+    } catch (error) {
+      next(error);
+    }
+  });
+
   // Get all available tasks (for task browsing) with search support
   app.get("/api/tasks", requireAuth, async (req, res, next) => {
     try {
