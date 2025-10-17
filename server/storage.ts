@@ -50,7 +50,7 @@ export interface IStorage {
   // Task operations
   createTask(task: InsertTask): Promise<Task>;
   createTasks(tasks: InsertTask[]): Promise<Task[]>;
-  getTask(id: string): Promise<Task | undefined>;
+  getTask(id: string): Promise<(Task & { project?: Project; provider?: User }) | undefined>;
   getTasksByProject(projectId: string): Promise<Task[]>;
   getTasksByPerformer(performerId: string): Promise<Task[]>;
   getAvailableTasks(): Promise<Task[]>;
@@ -244,9 +244,24 @@ export class DatabaseStorage implements IStorage {
     return await db.insert(tasks).values(insertTasks).returning();
   }
 
-  async getTask(id: string): Promise<Task | undefined> {
-    const [task] = await db.select().from(tasks).where(eq(tasks.id, id));
-    return task || undefined;
+  async getTask(id: string): Promise<(Task & { project?: Project; provider?: User }) | undefined> {
+    const results = await db
+      .select()
+      .from(tasks)
+      .leftJoin(projects, eq(tasks.projectId, projects.id))
+      .leftJoin(users, eq(projects.providerId, users.id))
+      .where(eq(tasks.id, id));
+    
+    if (results.length === 0) {
+      return undefined;
+    }
+
+    const result = results[0];
+    return {
+      ...result.tasks,
+      project: result.projects || undefined,
+      provider: result.users || undefined,
+    };
   }
 
   async getTasksByProject(projectId: string): Promise<Task[]> {

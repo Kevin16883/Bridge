@@ -20,6 +20,7 @@ import Community from "@/pages/community";
 import QuestionDetail from "@/pages/question-detail";
 import ApplicationHistory from "@/pages/application-history";
 import Drafts from "@/pages/drafts";
+import UserProfile from "@/pages/user-profile";
 
 function Router() {
   return (
@@ -37,6 +38,7 @@ function Router() {
       <ProtectedRoute path="/tasks" component={Tasks} />
       <ProtectedRoute path="/tasks/:id" component={TaskDetail} />
       <ProtectedRoute path="/applications" component={ApplicationHistory} />
+      <ProtectedRoute path="/users/:userId" component={UserProfile} />
       <ProtectedRoute path="/community" component={Community} />
       <ProtectedRoute path="/community/:id" component={QuestionDetail} />
       <ProtectedRoute path="/questions" component={Community} />
