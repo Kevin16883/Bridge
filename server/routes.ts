@@ -2,9 +2,11 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { setupAuth } from "./auth";
-import { analyzeAndBreakdownDemand } from "./ai";
-import { insertProjectSchema, insertTaskSchema, insertTaskSubmissionSchema } from "@shared/schema";
+import { analyzeAndBreakdownDemand, generateQuestionTags, generateAnswerFromComments } from "./ai";
+import { insertProjectSchema, insertTaskSchema, insertTaskSubmissionSchema, comments } from "@shared/schema";
 import { z } from "zod";
+import { db } from "./db";
+import { eq } from "drizzle-orm";
 
 function requireAuth(req: any, res: any, next: any) {
   if (!req.isAuthenticated()) {
@@ -871,6 +873,293 @@ Provide the response in JSON format:
       if (error instanceof z.ZodError) {
         return res.status(400).json({ error: error.errors[0].message });
       }
+      next(error);
+    }
+  });
+
+  // ============ Q&A Community API Routes ============
+
+  // 1. POST /api/questions - Create question with AI-generated tags
+  app.post("/api/questions", requireAuth, async (req, res, next) => {
+    try {
+      const { title, content, category } = z.object({
+        title: z.string().min(1),
+        content: z.string().min(1),
+        category: z.enum(["interview", "learning_path", "offer_choice", "study_plan", "textbook"]),
+      }).parse(req.body);
+
+      // Generate tags using AI
+      const tags = await generateQuestionTags(title, content, category);
+
+      const question = await storage.createQuestion({
+        userId: req.user!.id,
+        title,
+        content,
+        category,
+        tags,
+      });
+
+      res.status(201).json(question);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ error: error.errors[0].message });
+      }
+      next(error);
+    }
+  });
+
+  // 2. GET /api/questions - Get all questions (with optional category filter)
+  app.get("/api/questions", requireAuth, async (req, res, next) => {
+    try {
+      const { category } = req.query;
+      const questions = await storage.getAllQuestions(category as string | undefined);
+      res.json(questions);
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  // 3. GET /api/questions/:id - Get single question details
+  app.get("/api/questions/:id", requireAuth, async (req, res, next) => {
+    try {
+      const questionId = req.params.id;
+      
+      // Increment view count
+      await storage.incrementViewCount(questionId);
+      
+      const question = await storage.getQuestion(questionId);
+      if (!question) {
+        return res.status(404).json({ error: "Question not found" });
+      }
+
+      res.json(question);
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  // 4. POST /api/questions/:id/comments - Add comment to question
+  app.post("/api/questions/:id/comments", requireAuth, async (req, res, next) => {
+    try {
+      const questionId = req.params.id;
+      const { content } = z.object({
+        content: z.string().min(1),
+      }).parse(req.body);
+
+      // Verify question exists
+      const question = await storage.getQuestion(questionId);
+      if (!question) {
+        return res.status(404).json({ error: "Question not found" });
+      }
+
+      const comment = await storage.createComment({
+        questionId,
+        userId: req.user!.id,
+        content,
+      });
+
+      res.status(201).json(comment);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ error: error.errors[0].message });
+      }
+      next(error);
+    }
+  });
+
+  // 5. GET /api/questions/:id/comments - Get all comments for a question
+  app.get("/api/questions/:id/comments", requireAuth, async (req, res, next) => {
+    try {
+      const questionId = req.params.id;
+      
+      // Verify question exists
+      const question = await storage.getQuestion(questionId);
+      if (!question) {
+        return res.status(404).json({ error: "Question not found" });
+      }
+
+      const comments = await storage.getCommentsByQuestion(questionId);
+      res.json(comments);
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  // 6. POST /api/comments/:id/vote - Vote on a comment
+  app.post("/api/comments/:id/vote", requireAuth, async (req, res, next) => {
+    try {
+      const commentId = req.params.id;
+      const { voteType } = z.object({
+        voteType: z.enum(["up", "down"]),
+      }).parse(req.body);
+
+      await storage.voteComment({
+        commentId,
+        userId: req.user!.id,
+        voteType,
+      });
+
+      res.json({ success: true });
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ error: error.errors[0].message });
+      }
+      next(error);
+    }
+  });
+
+  // 7. DELETE /api/comments/:id/vote - Remove vote from comment
+  app.delete("/api/comments/:id/vote", requireAuth, async (req, res, next) => {
+    try {
+      const commentId = req.params.id;
+      await storage.removeVote(commentId, req.user!.id);
+      res.json({ success: true });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  // 8. POST /api/comments/:id/save - Save a comment
+  app.post("/api/comments/:id/save", requireAuth, async (req, res, next) => {
+    try {
+      const commentId = req.params.id;
+      
+      // Get comment to retrieve questionId
+      const allComments = await db.select().from(comments).where(eq(comments.id, commentId));
+      const comment = allComments[0];
+      
+      if (!comment) {
+        return res.status(404).json({ error: "Comment not found" });
+      }
+      
+      const saved = await storage.saveComment({
+        userId: req.user!.id,
+        commentId,
+        questionId: comment.questionId,
+      });
+
+      res.status(201).json(saved);
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  // 9. DELETE /api/comments/:id/save - Unsave a comment
+  app.delete("/api/comments/:id/save", requireAuth, async (req, res, next) => {
+    try {
+      const commentId = req.params.id;
+      await storage.unsaveComment(req.user!.id, commentId);
+      res.json({ success: true });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  // 10. POST /api/questions/:id/save - Save a question
+  app.post("/api/questions/:id/save", requireAuth, async (req, res, next) => {
+    try {
+      const questionId = req.params.id;
+      
+      // Verify question exists
+      const question = await storage.getQuestion(questionId);
+      if (!question) {
+        return res.status(404).json({ error: "Question not found" });
+      }
+
+      const saved = await storage.saveQuestion({
+        userId: req.user!.id,
+        questionId,
+      });
+
+      res.status(201).json(saved);
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  // 11. DELETE /api/questions/:id/save - Unsave a question
+  app.delete("/api/questions/:id/save", requireAuth, async (req, res, next) => {
+    try {
+      const questionId = req.params.id;
+      await storage.unsaveQuestion(req.user!.id, questionId);
+      res.json({ success: true });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  // 12. GET /api/my-saves - Get all saved items for current user
+  app.get("/api/my-saves", requireAuth, async (req, res, next) => {
+    try {
+      const savedQuestions = await storage.getSavedQuestionsByUser(req.user!.id);
+      const savedComments = await storage.getSavedCommentsByUser(req.user!.id);
+
+      res.json({
+        questions: savedQuestions,
+        comments: savedComments,
+      });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  // 13. POST /api/questions/:id/generate-answer - Generate AI answer from saved comments
+  app.post("/api/questions/:id/generate-answer", requireAuth, async (req, res, next) => {
+    try {
+      const questionId = req.params.id;
+      
+      // Get question details
+      const question = await storage.getQuestion(questionId);
+      if (!question) {
+        return res.status(404).json({ error: "Question not found" });
+      }
+
+      // Get user's saved comments for this question
+      const savedComments = await storage.getSavedCommentsByUser(req.user!.id, questionId);
+      
+      if (savedComments.length === 0) {
+        return res.status(400).json({ error: "No saved comments found for this question. Please save some comments first." });
+      }
+
+      // Generate answer using AI
+      const answer = await generateAnswerFromComments(
+        question.title,
+        question.content,
+        savedComments.map(sc => ({
+          content: sc.comment.content,
+          user: sc.comment.user,
+        }))
+      );
+
+      // Save the generated answer with source comment IDs
+      const questionAnswer = await storage.createQuestionAnswer({
+        questionId,
+        userId: req.user!.id,
+        content: answer,
+        sourceCommentIds: savedComments.map(sc => sc.commentId),
+      });
+
+      res.status(201).json(questionAnswer);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ error: error.errors[0].message });
+      }
+      next(error);
+    }
+  });
+
+  // 14. GET /api/questions/:id/my-answer - Get user's generated answer for a question
+  app.get("/api/questions/:id/my-answer", requireAuth, async (req, res, next) => {
+    try {
+      const questionId = req.params.id;
+      
+      const answer = await storage.getQuestionAnswer(questionId, req.user!.id);
+      if (!answer) {
+        return res.status(404).json({ error: "No answer found" });
+      }
+
+      res.json(answer);
+    } catch (error) {
       next(error);
     }
   });

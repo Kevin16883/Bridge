@@ -98,7 +98,7 @@ export interface IStorage {
   // Saved comments operations
   saveComment(saved: InsertSavedComment): Promise<SavedComment>;
   unsaveComment(userId: string, commentId: string): Promise<void>;
-  getSavedCommentsByUser(userId: string, questionId?: string): Promise<Array<SavedComment & { comment: Comment }>>;
+  getSavedCommentsByUser(userId: string, questionId?: string): Promise<Array<SavedComment & { comment: Comment & { user: User } }>>;
   
   // Saved questions operations
   saveQuestion(saved: InsertSavedQuestion): Promise<SavedQuestion>;
@@ -505,11 +505,12 @@ export class DatabaseStorage implements IStorage {
     );
   }
 
-  async getSavedCommentsByUser(userId: string, questionId?: string): Promise<Array<SavedComment & { comment: Comment }>> {
+  async getSavedCommentsByUser(userId: string, questionId?: string): Promise<Array<SavedComment & { comment: Comment & { user: User } }>> {
     let query = db
       .select()
       .from(savedComments)
       .leftJoin(comments, eq(savedComments.commentId, comments.id))
+      .leftJoin(users, eq(comments.userId, users.id))
       .where(eq(savedComments.userId, userId));
 
     if (questionId) {
@@ -525,7 +526,10 @@ export class DatabaseStorage implements IStorage {
     
     return results.map(r => ({
       ...r.saved_comments,
-      comment: r.comments!
+      comment: {
+        ...r.comments!,
+        user: r.users!
+      }
     }));
   }
 
