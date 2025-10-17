@@ -23,7 +23,7 @@ import {
   type BlockedUser, type InsertBlockedUser
 } from "@shared/schema";
 import { db, pool } from "./db";
-import { eq, and, desc, sql } from "drizzle-orm";
+import { eq, and, desc, sql, or, ilike, arrayContains } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import session from "express-session";
 import connectPg from "connect-pg-simple";
@@ -41,7 +41,10 @@ export interface IStorage {
   createProject(project: InsertProject): Promise<Project>;
   getProject(id: string): Promise<Project | undefined>;
   getProjectsByProvider(providerId: string): Promise<Project[]>;
+  getProjectsByProviderAndStatus(providerId: string, status?: "draft" | "active" | "completed"): Promise<Project[]>;
+  searchProjects(providerId: string, keyword?: string): Promise<Project[]>;
   updateProjectStatus(id: string, status: "draft" | "active" | "completed"): Promise<void>;
+  updateProject(id: string, updates: Partial<InsertProject>): Promise<void>;
   
   // Task operations
   createTask(task: InsertTask): Promise<Task>;
@@ -50,6 +53,8 @@ export interface IStorage {
   getTasksByProject(projectId: string): Promise<Task[]>;
   getTasksByPerformer(performerId: string): Promise<Task[]>;
   getAvailableTasks(): Promise<Task[]>;
+  searchTasks(keyword?: string, skills?: string[]): Promise<Task[]>;
+  searchTasksForPerformer(performerId: string, keyword?: string, skills?: string[]): Promise<Task[]>;
   updateTaskStatus(id: string, status: "pending" | "matched" | "in_progress" | "completed"): Promise<void>;
   matchTaskToPerformer(taskId: string, performerId: string): Promise<void>;
   
@@ -188,6 +193,26 @@ export class DatabaseStorage implements IStorage {
     await db.update(projects).set({ status }).where(eq(projects.id, id));
   }
 
+  async getProjectsByProviderAndStatus(providerId: string, status?: "draft" | "active" | "completed"): Promise<Project[]> {
+    const conditions = [eq(projects.providerId, providerId)];
+    if (status) {
+      conditions.push(eq(projects.status, status));
+    }
+    return await db.select().from(projects).where(and(...conditions)).orderBy(desc(projects.createdAt));
+  }
+
+  async searchProjects(providerId: string, keyword?: string): Promise<Project[]> {
+    const conditions = [eq(projects.providerId, providerId)];
+    if (keyword) {
+      conditions.push(ilike(projects.originalDemand, `%${keyword}%`));
+    }
+    return await db.select().from(projects).where(and(...conditions)).orderBy(desc(projects.createdAt));
+  }
+
+  async updateProject(id: string, updates: Partial<InsertProject>): Promise<void> {
+    await db.update(projects).set(updates).where(eq(projects.id, id));
+  }
+
   // Task operations
   async createTask(insertTask: InsertTask): Promise<Task> {
     const [task] = await db.insert(tasks).values(insertTask).returning();
@@ -213,6 +238,48 @@ export class DatabaseStorage implements IStorage {
 
   async getAvailableTasks(): Promise<Task[]> {
     return await db.select().from(tasks).where(eq(tasks.status, "pending"));
+  }
+
+  async searchTasks(keyword?: string, skills?: string[]): Promise<Task[]> {
+    const conditions = [eq(tasks.status, "pending")];
+    
+    if (keyword) {
+      conditions.push(
+        or(
+          ilike(tasks.title, `%${keyword}%`),
+          ilike(tasks.description, `%${keyword}%`)
+        )!
+      );
+    }
+    
+    if (skills && skills.length > 0) {
+      conditions.push(
+        or(...skills.map(skill => sql`${tasks.skills} @> ARRAY[${skill}]`))!
+      );
+    }
+    
+    return await db.select().from(tasks).where(and(...conditions)).orderBy(desc(tasks.createdAt));
+  }
+
+  async searchTasksForPerformer(performerId: string, keyword?: string, skills?: string[]): Promise<Task[]> {
+    const conditions = [eq(tasks.matchedPerformerId, performerId)];
+    
+    if (keyword) {
+      conditions.push(
+        or(
+          ilike(tasks.title, `%${keyword}%`),
+          ilike(tasks.description, `%${keyword}%`)
+        )!
+      );
+    }
+    
+    if (skills && skills.length > 0) {
+      conditions.push(
+        or(...skills.map(skill => sql`${tasks.skills} @> ARRAY[${skill}]`))!
+      );
+    }
+    
+    return await db.select().from(tasks).where(and(...conditions)).orderBy(desc(tasks.createdAt));
   }
 
   async updateTaskStatus(id: string, status: "pending" | "matched" | "in_progress" | "completed"): Promise<void> {
