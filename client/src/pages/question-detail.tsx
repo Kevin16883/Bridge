@@ -7,7 +7,8 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Separator } from "@/components/ui/separator";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { UserAvatar } from "@/components/user-avatar";
+import { UserProfileDialog } from "@/components/user-profile-dialog";
 import { Eye, ThumbsUp, ThumbsDown, Bookmark, MessageSquare, Sparkles, ArrowLeft } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
@@ -35,7 +36,9 @@ interface Comment {
   downvotes: number;
   createdAt: string;
   user?: {
+    id: string;
     username: string;
+    avatarUrl?: string | null;
   };
 }
 
@@ -66,6 +69,7 @@ export default function QuestionDetail() {
   const [, params] = useRoute("/community/:id");
   const questionId = params?.id;
   const [commentContent, setCommentContent] = useState("");
+  const [selectedUser, setSelectedUser] = useState<{ id: string; username: string; avatarUrl?: string | null } | null>(null);
   const { toast } = useToast();
 
   const { data: question, isLoading: questionLoading } = useQuery<Question>({
@@ -359,11 +363,20 @@ export default function QuestionDetail() {
                   <Card key={comment.id} data-testid={`comment-${comment.id}`}>
                     <CardContent className="pt-6">
                       <div className="flex gap-4">
-                        <Avatar>
-                          <AvatarFallback>
-                            {comment.user?.username?.charAt(0).toUpperCase() || "U"}
-                          </AvatarFallback>
-                        </Avatar>
+                        <div 
+                          className="cursor-pointer"
+                          onClick={() => setSelectedUser({
+                            id: comment.user?.id || comment.userId,
+                            username: comment.user?.username || "匿名用户",
+                            avatarUrl: comment.user?.avatarUrl
+                          })}
+                          data-testid={`avatar-${comment.id}`}
+                        >
+                          <UserAvatar
+                            avatarUrl={comment.user?.avatarUrl}
+                            username={comment.user?.username || "匿名用户"}
+                          />
+                        </div>
                         
                         <div className="flex-1">
                           <div className="flex items-center justify-between mb-2">
@@ -418,6 +431,16 @@ export default function QuestionDetail() {
           )}
         </div>
       </div>
+
+      {selectedUser && (
+        <UserProfileDialog
+          open={!!selectedUser}
+          onOpenChange={(open) => !open && setSelectedUser(null)}
+          userId={selectedUser.id}
+          username={selectedUser.username}
+          avatarUrl={selectedUser.avatarUrl}
+        />
+      )}
     </div>
   );
 }
