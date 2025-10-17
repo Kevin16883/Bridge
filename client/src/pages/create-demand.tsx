@@ -144,8 +144,8 @@ export default function CreateDemand() {
         description: task.description,
         skills: task.skills,
         estimatedTime: task.estimatedTime,
-        budget: task.budget.toString(),
-        difficulty: task.difficulty === "easy" ? "beginner" : task.difficulty === "hard" ? "advanced" : "intermediate",
+        budget: typeof task.budget === 'number' ? task.budget : parseFloat(task.budget),
+        difficulty: task.difficulty,
       })) : undefined;
       
       const data = { 
