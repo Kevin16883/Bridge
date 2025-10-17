@@ -1406,6 +1406,17 @@ Provide the response in JSON format:
     }
   });
 
+  // 17. GET /api/block/:userId/status - Check if blocked a user
+  app.get("/api/block/:userId/status", requireAuth, async (req, res, next) => {
+    try {
+      const userId = req.params.userId;
+      const isBlocked = await storage.isBlocked(req.user!.id, userId);
+      res.json({ isBlocked });
+    } catch (error) {
+      next(error);
+    }
+  });
+
   const httpServer = createServer(app);
 
   return httpServer;
