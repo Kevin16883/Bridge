@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Link } from "wouter";
+import { Header } from "@/components/header";
 import type { Task, TaskSubmission, Badge as BadgeType, UserBadge } from "@shared/schema";
 
 interface PerformerStats {
@@ -45,6 +46,8 @@ export default function PerformerDashboard() {
 
   return (
     <div className="min-h-screen bg-background">
+      <Header />
+      
       <div className="container px-4 py-8">
         {/* Header */}
         <div className="mb-8">
