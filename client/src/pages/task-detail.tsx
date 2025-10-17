@@ -1,17 +1,18 @@
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { useParams, useLocation } from "wouter";
-import { ArrowLeft, Clock, DollarSign, CheckCircle, AlertCircle, Upload } from "lucide-react";
+import { useParams, useLocation, Link } from "wouter";
+import { ArrowLeft, Clock, DollarSign, CheckCircle, AlertCircle, Upload, User as UserIcon } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import type { Task, TaskSubmission } from "@shared/schema";
+import type { Task, TaskSubmission, User, Project } from "@shared/schema";
 
 const submissionFormSchema = z.object({
   content: z.string().min(10, "Submission content must be at least 10 characters"),
@@ -20,8 +21,10 @@ const submissionFormSchema = z.object({
 
 type SubmissionFormData = z.infer<typeof submissionFormSchema>;
 
-interface TaskWithSubmissions extends Task {
+interface TaskWithDetails extends Task {
   submissions?: TaskSubmission[];
+  provider?: User;
+  project?: Project;
 }
 
 export default function TaskDetail() {
@@ -29,7 +32,7 @@ export default function TaskDetail() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
 
-  const { data: task, isLoading } = useQuery<TaskWithSubmissions>({
+  const { data: task, isLoading } = useQuery<TaskWithDetails>({
     queryKey: ["/api/tasks", id],
     enabled: !!id,
   });
@@ -206,6 +209,23 @@ export default function TaskDetail() {
                 <CardDescription className="text-base">
                   {task.description}
                 </CardDescription>
+                
+                {/* Provider Information */}
+                {task.provider && (
+                  <Link href={`/users/${task.provider.id}`} data-testid="link-provider">
+                    <div className="flex items-center gap-2 mt-3 p-2 rounded-lg border hover-elevate w-fit">
+                      <Avatar className="h-6 w-6">
+                        <AvatarImage src={task.provider.avatarUrl || undefined} />
+                        <AvatarFallback className="text-xs">
+                          {task.provider.username.substring(0, 2).toUpperCase()}
+                        </AvatarFallback>
+                      </Avatar>
+                      <span className="text-sm text-muted-foreground">
+                        Published by <span className="font-medium text-foreground">{task.provider.username}</span>
+                      </span>
+                    </div>
+                  </Link>
+                )}
               </div>
               <Badge
                 variant={task.status === "completed" ? "default" : "outline"}
