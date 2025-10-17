@@ -24,6 +24,8 @@ function Router() {
     <Switch>
       <Route path="/" component={Home} />
       <Route path="/auth" component={AuthPage} />
+      <Route path="/login" component={AuthPage} />
+      <Route path="/register" component={AuthPage} />
       <ProtectedRoute path="/provider-dashboard" component={ProviderDashboard} />
       <ProtectedRoute path="/performer-dashboard" component={PerformerDashboard} />
       <ProtectedRoute path="/create-demand" component={CreateDemand} />
@@ -33,6 +35,8 @@ function Router() {
       <ProtectedRoute path="/tasks/:id" component={TaskDetail} />
       <ProtectedRoute path="/community" component={Community} />
       <ProtectedRoute path="/community/:id" component={QuestionDetail} />
+      <ProtectedRoute path="/questions" component={Community} />
+      <ProtectedRoute path="/questions/:id" component={QuestionDetail} />
       <Route component={NotFound} />
     </Switch>
   );

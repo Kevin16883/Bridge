@@ -636,11 +636,14 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getConversation(userId1: string, userId2: string): Promise<Array<Message & { sender: User; receiver: User }>> {
+    const sender = alias(users, 'sender');
+    const receiver = alias(users, 'receiver');
+    
     const results = await db
       .select()
       .from(messages)
-      .leftJoin(users as any, eq(messages.senderId, users.id))
-      .leftJoin(users as any, eq(messages.receiverId, users.id))
+      .leftJoin(sender, eq(messages.senderId, sender.id))
+      .leftJoin(receiver, eq(messages.receiverId, receiver.id))
       .where(
         sql`(${messages.senderId} = ${userId1} AND ${messages.receiverId} = ${userId2}) OR (${messages.senderId} = ${userId2} AND ${messages.receiverId} = ${userId1})`
       )
@@ -648,8 +651,8 @@ export class DatabaseStorage implements IStorage {
     
     return results.map(r => ({
       ...r.messages,
-      sender: r.users!,
-      receiver: r.users!
+      sender: r.sender!,
+      receiver: r.receiver!
     }));
   }
 
