@@ -701,8 +701,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Time tracking endpoints (performer only)
-  app.post("/api/performer/time-tracking", requirePerformer, async (req, res, next) => {
+  // Time tracking endpoints (all authenticated users)
+  app.post("/api/performer/time-tracking", requireAuth, async (req, res, next) => {
     try {
       const data = z.object({
         taskId: z.string(),
@@ -724,7 +724,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/performer/time-tracking", requirePerformer, async (req, res, next) => {
+  app.get("/api/performer/time-tracking", requireAuth, async (req, res, next) => {
     try {
       const { startDate, endDate } = req.query;
       const tracking = await storage.getTimeTrackingByPerformer(
@@ -738,7 +738,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/performer/daily-time/:date", requirePerformer, async (req, res, next) => {
+  app.get("/api/performer/daily-time/:date", requireAuth, async (req, res, next) => {
     try {
       const { date } = req.params;
       const dailyTime = await storage.getDailyTimeByPerformer(req.user!.id, date);
@@ -748,8 +748,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Weekly report endpoints (performer only)
-  app.get("/api/performer/weekly-reports", requirePerformer, async (req, res, next) => {
+  // Weekly report endpoints (all authenticated users)
+  app.get("/api/performer/weekly-reports", requireAuth, async (req, res, next) => {
     try {
       const reports = await storage.getWeeklyReportsByPerformer(req.user!.id);
       res.json(reports);
@@ -758,7 +758,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/performer/generate-weekly-report", requirePerformer, async (req, res, next) => {
+  app.post("/api/performer/generate-weekly-report", requireAuth, async (req, res, next) => {
     try {
       const { weekStart, weekEnd } = z.object({
         weekStart: z.string(),

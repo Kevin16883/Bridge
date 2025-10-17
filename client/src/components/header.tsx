@@ -62,7 +62,7 @@ export function Header() {
         </div>
         
         <div className="flex items-center gap-2">
-          {user?.role === "performer" && <ActivityCalendar />}
+          {user && <ActivityCalendar />}
           <ThemeToggle />
           {user ? (
             <DropdownMenu>
