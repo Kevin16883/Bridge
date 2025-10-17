@@ -1,15 +1,17 @@
 import { 
-  users, projects, tasks, taskSubmissions, badges, userBadges, taskApplications,
+  users, projects, tasks, taskSubmissions, badges, userBadges, taskApplications, timeTracking, weeklyReports,
   type User, type InsertUser,
   type Project, type InsertProject,
   type Task, type InsertTask,
   type TaskSubmission, type InsertTaskSubmission,
   type Badge, type InsertBadge,
   type UserBadge, type InsertUserBadge,
-  type TaskApplication, type InsertTaskApplication
+  type TaskApplication, type InsertTaskApplication,
+  type TimeTracking, type InsertTimeTracking,
+  type WeeklyReport, type InsertWeeklyReport
 } from "@shared/schema";
 import { db, pool } from "./db";
-import { eq, and, desc } from "drizzle-orm";
+import { eq, and, desc, sql } from "drizzle-orm";
 import session from "express-session";
 import connectPg from "connect-pg-simple";
 
@@ -59,6 +61,16 @@ export interface IStorage {
   getApplicationsByTask(taskId: string): Promise<TaskApplication[]>;
   getApplicationsByPerformer(performerId: string): Promise<TaskApplication[]>;
   updateApplicationStatus(id: string, status: "pending" | "accepted" | "rejected"): Promise<void>;
+  
+  // Time tracking operations
+  createTimeTracking(tracking: InsertTimeTracking): Promise<TimeTracking>;
+  getTimeTrackingByPerformer(performerId: string, startDate?: string, endDate?: string): Promise<TimeTracking[]>;
+  getDailyTimeByPerformer(performerId: string, date: string): Promise<Array<TimeTracking & { task: Task }>>;
+  
+  // Weekly report operations
+  createWeeklyReport(report: InsertWeeklyReport): Promise<WeeklyReport>;
+  getWeeklyReportsByPerformer(performerId: string): Promise<WeeklyReport[]>;
+  getWeeklyReport(id: string): Promise<WeeklyReport | undefined>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -226,6 +238,66 @@ export class DatabaseStorage implements IStorage {
 
   async updateApplicationStatus(id: string, status: "pending" | "accepted" | "rejected"): Promise<void> {
     await db.update(taskApplications).set({ status }).where(eq(taskApplications.id, id));
+  }
+
+  // Time tracking operations
+  async createTimeTracking(insertTracking: InsertTimeTracking): Promise<TimeTracking> {
+    const [tracking] = await db.insert(timeTracking).values(insertTracking).returning();
+    return tracking;
+  }
+
+  async getTimeTrackingByPerformer(performerId: string, startDate?: string, endDate?: string): Promise<TimeTracking[]> {
+    let query = db.select().from(timeTracking).where(eq(timeTracking.performerId, performerId));
+    
+    if (startDate && endDate) {
+      query = query.where(
+        and(
+          eq(timeTracking.performerId, performerId),
+          // SQL comparison for date strings in YYYY-MM-DD format
+          sql`${timeTracking.date} >= ${startDate}`,
+          sql`${timeTracking.date} <= ${endDate}`
+        )
+      );
+    }
+    
+    return await query.orderBy(desc(timeTracking.date));
+  }
+
+  async getDailyTimeByPerformer(performerId: string, date: string): Promise<Array<TimeTracking & { task: Task }>> {
+    const results = await db
+      .select()
+      .from(timeTracking)
+      .leftJoin(tasks, eq(timeTracking.taskId, tasks.id))
+      .where(
+        and(
+          eq(timeTracking.performerId, performerId),
+          eq(timeTracking.date, date)
+        )
+      );
+    
+    return results.map(r => ({
+      ...r.time_tracking,
+      task: r.tasks!
+    }));
+  }
+
+  // Weekly report operations
+  async createWeeklyReport(insertReport: InsertWeeklyReport): Promise<WeeklyReport> {
+    const [report] = await db.insert(weeklyReports).values(insertReport).returning();
+    return report;
+  }
+
+  async getWeeklyReportsByPerformer(performerId: string): Promise<WeeklyReport[]> {
+    return await db
+      .select()
+      .from(weeklyReports)
+      .where(eq(weeklyReports.performerId, performerId))
+      .orderBy(desc(weeklyReports.weekStart));
+  }
+
+  async getWeeklyReport(id: string): Promise<WeeklyReport | undefined> {
+    const [report] = await db.select().from(weeklyReports).where(eq(weeklyReports.id, id));
+    return report || undefined;
   }
 }
 

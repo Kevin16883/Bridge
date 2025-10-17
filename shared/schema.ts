@@ -135,3 +135,43 @@ export const insertTaskApplicationSchema = createInsertSchema(taskApplications).
 
 export type InsertTaskApplication = z.infer<typeof insertTaskApplicationSchema>;
 export type TaskApplication = typeof taskApplications.$inferSelect;
+
+// Time tracking table
+export const timeTracking = pgTable("time_tracking", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  performerId: varchar("performer_id").notNull().references(() => users.id),
+  taskId: varchar("task_id").notNull().references(() => tasks.id),
+  date: text("date").notNull(), // Format: YYYY-MM-DD
+  duration: integer("duration").notNull(), // Duration in minutes
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const insertTimeTrackingSchema = createInsertSchema(timeTracking).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type InsertTimeTracking = z.infer<typeof insertTimeTrackingSchema>;
+export type TimeTracking = typeof timeTracking.$inferSelect;
+
+// Weekly reports table
+export const weeklyReports = pgTable("weekly_reports", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  performerId: varchar("performer_id").notNull().references(() => users.id),
+  weekStart: text("week_start").notNull(), // Format: YYYY-MM-DD (Monday of the week)
+  weekEnd: text("week_end").notNull(), // Format: YYYY-MM-DD (Sunday of the week)
+  summary: text("summary").notNull(), // AI-generated summary
+  tasksCompleted: integer("tasks_completed").notNull(),
+  totalHours: integer("total_hours").notNull(), // Total minutes worked
+  evaluation: text("evaluation").notNull(), // AI evaluation
+  suggestions: text("suggestions").notNull(), // Learning and internship suggestions
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const insertWeeklyReportSchema = createInsertSchema(weeklyReports).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type InsertWeeklyReport = z.infer<typeof insertWeeklyReportSchema>;
+export type WeeklyReport = typeof weeklyReports.$inferSelect;

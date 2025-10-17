@@ -701,6 +701,180 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Time tracking endpoints (performer only)
+  app.post("/api/performer/time-tracking", requirePerformer, async (req, res, next) => {
+    try {
+      const data = z.object({
+        taskId: z.string(),
+        date: z.string(),
+        duration: z.number().positive(),
+      }).parse(req.body);
+
+      const tracking = await storage.createTimeTracking({
+        performerId: req.user!.id,
+        ...data,
+      });
+
+      res.json(tracking);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ error: error.errors[0].message });
+      }
+      next(error);
+    }
+  });
+
+  app.get("/api/performer/time-tracking", requirePerformer, async (req, res, next) => {
+    try {
+      const { startDate, endDate } = req.query;
+      const tracking = await storage.getTimeTrackingByPerformer(
+        req.user!.id,
+        startDate as string,
+        endDate as string
+      );
+      res.json(tracking);
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  app.get("/api/performer/daily-time/:date", requirePerformer, async (req, res, next) => {
+    try {
+      const { date } = req.params;
+      const dailyTime = await storage.getDailyTimeByPerformer(req.user!.id, date);
+      res.json(dailyTime);
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  // Weekly report endpoints (performer only)
+  app.get("/api/performer/weekly-reports", requirePerformer, async (req, res, next) => {
+    try {
+      const reports = await storage.getWeeklyReportsByPerformer(req.user!.id);
+      res.json(reports);
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  app.post("/api/performer/generate-weekly-report", requirePerformer, async (req, res, next) => {
+    try {
+      const { weekStart, weekEnd } = z.object({
+        weekStart: z.string(),
+        weekEnd: z.string(),
+      }).parse(req.body);
+
+      // Get time tracking data for the week
+      const timeData = await storage.getTimeTrackingByPerformer(req.user!.id, weekStart, weekEnd);
+      
+      // Get all tasks involved
+      const taskIds = [...new Set(timeData.map(t => t.taskId))];
+      const tasks = await Promise.all(taskIds.map(id => storage.getTask(id)));
+      
+      // Calculate stats
+      const totalMinutes = timeData.reduce((sum, t) => sum + t.duration, 0);
+      const tasksCompleted = tasks.filter(t => t?.status === "completed").length;
+
+      // Generate AI-powered summary, evaluation, and suggestions
+      const taskDetails = tasks.map(t => ({
+        title: t?.title,
+        status: t?.status,
+        skills: t?.skills,
+        difficulty: t?.difficulty,
+      })).filter(t => t.title);
+
+      const timeBreakdown = timeData.map(t => {
+        const task = tasks.find(ts => ts?.id === t.taskId);
+        return {
+          task: task?.title,
+          hours: Math.floor(t.duration / 60),
+          minutes: t.duration % 60,
+        };
+      });
+
+      const aiPrompt = `As a career mentor and learning advisor, analyze this performer's weekly activity and provide:
+1. A concise summary of their work
+2. A constructive evaluation of their performance
+3. Specific learning suggestions and internship preparation advice
+
+Week Data:
+- Total time: ${Math.floor(totalMinutes / 60)}h ${totalMinutes % 60}m
+- Tasks worked on: ${taskIds.length}
+- Tasks completed: ${tasksCompleted}
+- Task breakdown: ${JSON.stringify(timeBreakdown, null, 2)}
+- Task details: ${JSON.stringify(taskDetails, null, 2)}
+
+Provide the response in JSON format:
+{
+  "summary": "2-3 sentence summary of the week's work",
+  "evaluation": "Constructive evaluation highlighting strengths and areas for improvement",
+  "suggestions": "Specific, actionable suggestions for learning and career development, including internship preparation tips"
+}`;
+
+      try {
+        const openai = (await import("openai")).default;
+        const client = new openai({
+          baseURL: "https://api.deepseek.com",
+          apiKey: process.env.DEEPSEEK_API_KEY,
+        });
+
+        const completion = await client.chat.completions.create({
+          model: "deepseek-chat",
+          messages: [{ role: "user", content: aiPrompt }],
+          response_format: { type: "json_object" },
+        });
+
+        const aiResponse = JSON.parse(completion.choices[0].message.content || "{}");
+        const summary = aiResponse.summary || `This week you worked on ${taskIds.length} tasks, spending ${Math.floor(totalMinutes / 60)} hours total.`;
+        const evaluation = aiResponse.evaluation || "Keep up the good work and stay focused on your goals.";
+        const suggestions = aiResponse.suggestions || "Continue building your skills and consider documenting your learnings.";
+
+        // Create report with AI-generated content
+        const report = await storage.createWeeklyReport({
+          performerId: req.user!.id,
+          weekStart,
+          weekEnd,
+          summary,
+          tasksCompleted,
+          totalHours: totalMinutes,
+          evaluation,
+          suggestions,
+        });
+
+        res.json(report);
+      } catch (aiError) {
+        console.error("AI generation failed, using fallback:", aiError);
+        
+        // Fallback to simple generation if AI fails
+        const taskSummary = tasks.map(t => t?.title).filter(Boolean).join(", ");
+        const summary = `This week you worked on ${taskIds.length} tasks: ${taskSummary}. You spent ${Math.floor(totalMinutes / 60)} hours and ${totalMinutes % 60} minutes in total.`;
+        const evaluation = tasksCompleted > 0 
+          ? `Great work! You completed ${tasksCompleted} task${tasksCompleted > 1 ? 's' : ''} this week. Keep up the momentum!`
+          : `You're making progress on your tasks. Focus on completing them to build your portfolio.`;
+        const suggestions = `Consider focusing on one task at a time to improve efficiency. Take regular breaks to maintain productivity. Document your learnings for future reference.`;
+
+        const report = await storage.createWeeklyReport({
+          performerId: req.user!.id,
+          weekStart,
+          weekEnd,
+          summary,
+          tasksCompleted,
+          totalHours: totalMinutes,
+          evaluation,
+          suggestions,
+        });
+
+        res.json(report);
+      }
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ error: error.errors[0].message });
+      }
+      next(error);
+    }
+  });
+
   const httpServer = createServer(app);
 
   return httpServer;

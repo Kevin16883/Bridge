@@ -1,6 +1,7 @@
 import { Link, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "./theme-toggle";
+import { ActivityCalendar } from "./activity-calendar";
 import { LogOut, User } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import {
@@ -61,6 +62,7 @@ export function Header() {
         </div>
         
         <div className="flex items-center gap-2">
+          {user?.role === "performer" && <ActivityCalendar />}
           <ThemeToggle />
           {user ? (
             <DropdownMenu>
