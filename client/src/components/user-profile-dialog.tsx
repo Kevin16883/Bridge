@@ -96,8 +96,12 @@ export function UserProfileDialog({
   });
 
   const handleMessage = () => {
-    onOpenChange(false);
+    // First open the message dialog
     setMessageDialogOpen(true);
+    // Then close the profile dialog with a slight delay to ensure smooth transition
+    setTimeout(() => {
+      onOpenChange(false);
+    }, 100);
   };
 
   return (

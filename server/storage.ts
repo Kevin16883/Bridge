@@ -656,13 +656,8 @@ export class DatabaseStorage implements IStorage {
   async getMessagesByUser(userId: string): Promise<Array<{ otherUser: User; lastMessage: Message; unreadCount: number }>> {
     // Get distinct conversations with last message
     const conversations = await db.execute(sql`
-      WITH last_messages AS (
-        SELECT DISTINCT ON (
-          CASE 
-            WHEN sender_id = ${userId} THEN receiver_id
-            ELSE sender_id
-          END
-        )
+      WITH message_with_other AS (
+        SELECT 
           *,
           CASE 
             WHEN sender_id = ${userId} THEN receiver_id
@@ -670,12 +665,12 @@ export class DatabaseStorage implements IStorage {
           END as other_user_id
         FROM messages
         WHERE sender_id = ${userId} OR receiver_id = ${userId}
-        ORDER BY 
-          CASE 
-            WHEN sender_id = ${userId} THEN receiver_id
-            ELSE sender_id
-          END,
-          created_at DESC
+      ),
+      last_messages AS (
+        SELECT DISTINCT ON (other_user_id)
+          *
+        FROM message_with_other
+        ORDER BY other_user_id, created_at DESC
       )
       SELECT 
         lm.*,
