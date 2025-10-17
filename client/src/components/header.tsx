@@ -2,6 +2,7 @@ import { Link, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "./theme-toggle";
 import { ActivityCalendar } from "./activity-calendar";
+import { MySaves } from "./my-saves";
 import { LogOut, User } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import {
@@ -57,12 +58,20 @@ export function Header() {
                   </Link>
                 </>
               )}
+              <Link href="/community" className="text-sm text-muted-foreground hover:text-foreground transition-colors" data-testid="link-community">
+                Community
+              </Link>
             </nav>
           )}
         </div>
         
         <div className="flex items-center gap-2">
-          {user && <ActivityCalendar />}
+          {user && (
+            <>
+              <MySaves />
+              <ActivityCalendar />
+            </>
+          )}
           <ThemeToggle />
           {user ? (
             <DropdownMenu>
