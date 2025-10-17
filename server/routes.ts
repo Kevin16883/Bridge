@@ -354,6 +354,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get pending applications count for provider
+  app.get("/api/provider/pending-applications-count", requireProvider, async (req, res, next) => {
+    try {
+      const projects = await storage.getProjectsByProvider(req.user!.id);
+      let totalPendingApplications = 0;
+
+      for (const project of projects) {
+        const tasks = await storage.getTasksByProject(project.id);
+        for (const task of tasks) {
+          if (task.status === "pending" && !task.matchedPerformerId) {
+            const applications = await storage.getApplicationsByTask(task.id);
+            const pendingApps = applications.filter(app => app.status === "pending");
+            totalPendingApplications += pendingApps.length;
+          }
+        }
+      }
+
+      res.json({ count: totalPendingApplications });
+    } catch (error) {
+      next(error);
+    }
+  });
+
   // Get applications for a task (provider only)
   app.get("/api/tasks/:id/applications", requireProvider, async (req, res, next) => {
     try {

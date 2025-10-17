@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "wouter";
-import { Plus, Briefcase, Clock, CheckCircle2, XCircle, BarChart3 } from "lucide-react";
+import { Plus, Briefcase, Clock, CheckCircle2, XCircle, BarChart3, UserCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -17,6 +17,10 @@ interface Project {
 export default function ProviderDashboard() {
   const { data: projects, isLoading } = useQuery<Project[]>({
     queryKey: ["/api/projects"],
+  });
+
+  const { data: pendingApplicationsData } = useQuery<{ count: number }>({
+    queryKey: ["/api/provider/pending-applications-count"],
   });
 
   const statusIcons = {
@@ -39,6 +43,7 @@ export default function ProviderDashboard() {
 
   const activeProjects = projects?.filter(p => p.status === "active").length || 0;
   const completedProjects = projects?.filter(p => p.status === "completed").length || 0;
+  const pendingApplications = pendingApplicationsData?.count || 0;
 
   return (
     <div className="min-h-screen bg-background">
@@ -66,7 +71,20 @@ export default function ProviderDashboard() {
           </div>
         ) : (
           <>
-            <div className="grid lg:grid-cols-3 gap-6 mb-8">
+            <div className="grid lg:grid-cols-4 gap-6 mb-8">
+              <Card data-testid="stat-pending-applications" className={pendingApplications > 0 ? "border-primary/50 bg-primary/5" : ""}>
+                <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Pending Applications</CardTitle>
+                  <UserCheck className={`h-4 w-4 ${pendingApplications > 0 ? 'text-primary' : 'text-muted-foreground'}`} />
+                </CardHeader>
+                <CardContent>
+                  <div className={`text-2xl font-bold ${pendingApplications > 0 ? 'text-primary' : ''}`}>
+                    {pendingApplications}
+                  </div>
+                  <p className="text-xs text-muted-foreground">Awaiting review</p>
+                </CardContent>
+              </Card>
+
               <Card data-testid="stat-active-projects">
                 <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
                   <CardTitle className="text-sm font-medium">Active Projects</CardTitle>

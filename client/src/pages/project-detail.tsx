@@ -1,9 +1,11 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { useLocation, Link } from "wouter";
-import { ArrowLeft, Clock, DollarSign, CheckCircle2, AlertCircle, FileText, Users } from "lucide-react";
+import { ArrowLeft, Clock, DollarSign, CheckCircle2, AlertCircle, FileText, Users, UserCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { useToast } from "@/hooks/use-toast";
+import { queryClient, apiRequest } from "@/lib/queryClient";
 
 interface Task {
   id: string;
@@ -30,6 +32,108 @@ interface Project {
 interface ProjectDetailResponse {
   project: Project;
   tasks: Task[];
+}
+
+interface TaskApplication {
+  id: string;
+  taskId: string;
+  performerId: string;
+  status: "pending" | "accepted" | "rejected";
+  createdAt: string;
+}
+
+function TaskApplications({ taskId, projectId }: { taskId: string; projectId: string }) {
+  const { toast } = useToast();
+  
+  const { data: applications, isLoading } = useQuery<TaskApplication[]>({
+    queryKey: ["/api/tasks", taskId, "applications"],
+    queryFn: async () => {
+      const response = await fetch(`/api/tasks/${taskId}/applications`, {
+        credentials: "include",
+      });
+      if (!response.ok) {
+        if (response.status === 403) return [];
+        throw new Error("Failed to fetch applications");
+      }
+      return response.json();
+    },
+  });
+
+  const acceptMutation = useMutation({
+    mutationFn: async (applicationId: string) => {
+      return apiRequest("POST", `/api/tasks/${taskId}/applications/${applicationId}/accept`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/projects", projectId] });
+      queryClient.invalidateQueries({ queryKey: ["/api/tasks", taskId, "applications"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/provider/pending-applications-count"] });
+      toast({
+        title: "Application Accepted",
+        description: "The performer has been assigned to this task.",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to accept application. Please try again.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  if (isLoading) {
+    return (
+      <div className="p-3 rounded-lg bg-muted/50">
+        <p className="text-sm text-muted-foreground">Loading applications...</p>
+      </div>
+    );
+  }
+
+  const pendingApplications = applications?.filter(app => app.status === "pending") || [];
+
+  if (pendingApplications.length === 0) {
+    return null;
+  }
+
+  return (
+    <div className="p-4 rounded-lg bg-primary/5 border border-primary/20 mb-3">
+      <div className="flex items-center gap-2 mb-3">
+        <UserCheck className="w-4 h-4 text-primary" />
+        <h4 className="font-semibold text-sm">
+          {pendingApplications.length} Application{pendingApplications.length !== 1 ? 's' : ''} Pending
+        </h4>
+      </div>
+      <div className="space-y-2">
+        {pendingApplications.map((app) => (
+          <div
+            key={app.id}
+            className="flex items-center justify-between p-3 rounded-md bg-background"
+            data-testid={`application-${app.id}`}
+          >
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
+                <Users className="w-4 h-4 text-primary" />
+              </div>
+              <div>
+                <p className="text-sm font-medium">Performer Application</p>
+                <p className="text-xs text-muted-foreground">
+                  Applied {new Date(app.createdAt).toLocaleDateString()}
+                </p>
+              </div>
+            </div>
+            <Button
+              size="sm"
+              onClick={() => acceptMutation.mutate(app.id)}
+              disabled={acceptMutation.isPending}
+              data-testid={`button-accept-${app.id}`}
+            >
+              {acceptMutation.isPending ? "Accepting..." : "Accept"}
+            </Button>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
 }
 
 export default function ProjectDetail() {
@@ -205,6 +309,11 @@ export default function ProjectDetail() {
                           <span className="ml-2 font-medium">{task.budget}</span>
                         </div>
                       </div>
+                      
+                      {/* Task Applications - show for pending tasks */}
+                      {task.status === "pending" && !task.matchedPerformerId && (
+                        <TaskApplications taskId={task.id} projectId={projectId} />
+                      )}
                       
                       {/* Task Progress Info */}
                       {task.matchedPerformerId && (
