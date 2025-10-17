@@ -16,6 +16,8 @@ import ProjectDetail from "@/pages/project-detail";
 import TaskDetail from "@/pages/task-detail";
 import TaskSubmissions from "@/pages/task-submissions";
 import Tasks from "@/pages/tasks";
+import Community from "@/pages/community";
+import QuestionDetail from "@/pages/question-detail";
 
 function Router() {
   return (
@@ -29,6 +31,8 @@ function Router() {
       <ProtectedRoute path="/projects/:projectId/tasks/:taskId/submissions" component={TaskSubmissions} />
       <ProtectedRoute path="/tasks" component={Tasks} />
       <ProtectedRoute path="/tasks/:id" component={TaskDetail} />
+      <ProtectedRoute path="/community" component={Community} />
+      <ProtectedRoute path="/community/:id" component={QuestionDetail} />
       <Route component={NotFound} />
     </Switch>
   );
