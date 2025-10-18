@@ -3,7 +3,7 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { setupAuth } from "./auth";
 import { analyzeAndBreakdownDemand, generateQuestionTags, generateAnswerFromComments } from "./ai";
-import { insertProjectSchema, insertTaskSchema, insertTaskSubmissionSchema, comments } from "@shared/schema";
+import { insertProjectSchema, insertTaskSchema, insertTaskSubmissionSchema, insertProviderReviewSchema, comments } from "@shared/schema";
 import { z } from "zod";
 import { db } from "./db";
 import { eq } from "drizzle-orm";
@@ -1612,6 +1612,65 @@ Provide the response in JSON format:
       const userId = req.params.userId;
       const stats = await storage.getUserStats(userId);
       res.json(stats);
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  // Provider Review Routes
+  // 19. POST /api/reviews - Create a provider review (performer only, after completing a task)
+  app.post("/api/reviews", requirePerformer, async (req, res, next) => {
+    try {
+      // Parse only the ratings and comment from request body, ignore providerId
+      const { salaryRating, workloadRating, benefitsRating, comment } = insertProviderReviewSchema.omit({
+        reviewerId: true,
+        providerId: true,
+        taskId: true,
+      }).parse(req.body);
+      
+      const { taskId } = z.object({ taskId: z.string() }).parse(req.body);
+      const reviewerId = req.user!.id;
+      
+      // Get the task to find the correct providerId
+      const task = await storage.getTask(taskId);
+      if (!task || !task.project) {
+        return res.status(404).json({ error: "Task not found" });
+      }
+      
+      const providerId = task.project.providerId;
+      
+      // Check if the user can review this task
+      const canReview = await storage.canUserReviewTask(reviewerId, taskId);
+      if (!canReview) {
+        return res.status(403).json({ 
+          error: "You can only review tasks you have completed, and only once per task" 
+        });
+      }
+      
+      const review = await storage.createProviderReview({
+        reviewerId,
+        providerId,
+        taskId,
+        salaryRating,
+        workloadRating,
+        benefitsRating,
+        comment,
+      });
+      res.status(201).json(review);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ error: error.errors[0].message });
+      }
+      next(error);
+    }
+  });
+
+  // 20. GET /api/tasks/:taskId/reviews - Get all reviews for a task
+  app.get("/api/tasks/:taskId/reviews", requireAuth, async (req, res, next) => {
+    try {
+      const taskId = req.params.taskId;
+      const reviews = await storage.getTaskReviews(taskId);
+      res.json(reviews);
     } catch (error) {
       next(error);
     }

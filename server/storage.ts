@@ -1,7 +1,7 @@
 import { 
   users, projects, tasks, taskSubmissions, badges, userBadges, taskApplications, timeTracking, weeklyReports,
   questions, comments, commentVotes, savedComments, savedQuestions, questionAnswers,
-  messages, follows, notifications, blockedUsers,
+  messages, follows, notifications, blockedUsers, providerReviews,
   type User, type InsertUser,
   type Project, type InsertProject,
   type Task, type InsertTask,
@@ -20,7 +20,8 @@ import {
   type Message, type InsertMessage,
   type Follow, type InsertFollow,
   type Notification, type InsertNotification,
-  type BlockedUser, type InsertBlockedUser
+  type BlockedUser, type InsertBlockedUser,
+  type ProviderReview, type InsertProviderReview
 } from "@shared/schema";
 import { db, pool } from "./db";
 import { eq, and, desc, sql, or, ilike, arrayContains, inArray } from "drizzle-orm";
@@ -166,6 +167,12 @@ export interface IStorage {
     recentProjects?: Project[];
     recentTasks?: Task[];
   }>;
+  
+  // Provider review operations
+  createProviderReview(review: InsertProviderReview): Promise<ProviderReview>;
+  getTaskReviews(taskId: string): Promise<Array<ProviderReview & { reviewer: User }>>;
+  hasUserReviewedTask(reviewerId: string, taskId: string): Promise<boolean>;
+  canUserReviewTask(reviewerId: string, taskId: string): Promise<boolean>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -1109,6 +1116,57 @@ export class DatabaseStorage implements IStorage {
     }
 
     return stats;
+  }
+
+  // Provider review operations
+  async createProviderReview(review: InsertProviderReview): Promise<ProviderReview> {
+    const [createdReview] = await db.insert(providerReviews).values(review).returning();
+    return createdReview;
+  }
+
+  async getTaskReviews(taskId: string): Promise<Array<ProviderReview & { reviewer: User }>> {
+    const results = await db
+      .select()
+      .from(providerReviews)
+      .leftJoin(users, eq(providerReviews.reviewerId, users.id))
+      .where(eq(providerReviews.taskId, taskId))
+      .orderBy(desc(providerReviews.createdAt));
+    
+    return results.map(r => ({
+      ...r.provider_reviews,
+      reviewer: r.users!
+    }));
+  }
+
+  async hasUserReviewedTask(reviewerId: string, taskId: string): Promise<boolean> {
+    const [review] = await db.select().from(providerReviews).where(
+      and(
+        eq(providerReviews.reviewerId, reviewerId),
+        eq(providerReviews.taskId, taskId)
+      )
+    );
+    return !!review;
+  }
+
+  async canUserReviewTask(reviewerId: string, taskId: string): Promise<boolean> {
+    // Check if user is the performer who completed this task
+    const [task] = await db
+      .select()
+      .from(tasks)
+      .where(eq(tasks.id, taskId));
+    
+    if (!task) {
+      return false;
+    }
+    
+    // Check if this performer completed the task
+    if (task.matchedPerformerId !== reviewerId || task.status !== "completed") {
+      return false;
+    }
+    
+    // Check if they haven't already reviewed it
+    const hasReviewed = await this.hasUserReviewedTask(reviewerId, taskId);
+    return !hasReviewed;
   }
 }
 

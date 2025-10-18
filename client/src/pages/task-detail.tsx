@@ -1,25 +1,35 @@
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useParams, useLocation, Link } from "wouter";
-import { ArrowLeft, Clock, DollarSign, CheckCircle, AlertCircle, Upload, User as UserIcon } from "lucide-react";
+import { ArrowLeft, Clock, DollarSign, CheckCircle, AlertCircle, Upload, User as UserIcon, Star, MessageSquare } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Slider } from "@/components/ui/slider";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import type { Task, TaskSubmission, User, Project } from "@shared/schema";
+import { useAuth } from "@/hooks/use-auth";
+import type { Task, TaskSubmission, User, Project, ProviderReview } from "@shared/schema";
 
 const submissionFormSchema = z.object({
   content: z.string().min(10, "Submission content must be at least 10 characters"),
   attachments: z.any().optional(),
 });
 
+const reviewFormSchema = z.object({
+  salaryRating: z.number().min(1).max(5),
+  workloadRating: z.number().min(1).max(5),
+  benefitsRating: z.number().min(1).max(5),
+  comment: z.string().min(10, "Review comment must be at least 10 characters").optional(),
+});
+
 type SubmissionFormData = z.infer<typeof submissionFormSchema>;
+type ReviewFormData = z.infer<typeof reviewFormSchema>;
 
 interface TaskWithDetails extends Task {
   submissions?: TaskSubmission[];
@@ -27,10 +37,15 @@ interface TaskWithDetails extends Task {
   project?: Project;
 }
 
+interface ReviewWithReviewer extends ProviderReview {
+  reviewer: User;
+}
+
 export default function TaskDetail() {
   const { id } = useParams<{ id: string }>();
   const [, setLocation] = useLocation();
   const { toast } = useToast();
+  const { user } = useAuth();
 
   const { data: task, isLoading } = useQuery<TaskWithDetails>({
     queryKey: ["/api/tasks", id],
@@ -45,6 +60,11 @@ export default function TaskDetail() {
   const { data: applicationStatus } = useQuery<{ hasApplied: boolean; application: any }>({
     queryKey: ["/api/tasks", id, "application-status"],
     enabled: !!id && !!task && task.status === "pending",
+  });
+
+  const { data: reviews = [] } = useQuery<ReviewWithReviewer[]>({
+    queryKey: ["/api/tasks", id, "reviews"],
+    enabled: !!id && !!task,
   });
 
   const form = useForm<SubmissionFormData>({
@@ -146,8 +166,47 @@ export default function TaskDetail() {
     },
   });
 
+  const reviewForm = useForm<ReviewFormData>({
+    resolver: zodResolver(reviewFormSchema),
+    defaultValues: {
+      salaryRating: 3,
+      workloadRating: 3,
+      benefitsRating: 3,
+      comment: "",
+    },
+  });
+
+  const reviewMutation = useMutation({
+    mutationFn: async (data: ReviewFormData) => {
+      // Only send taskId and ratings - server will verify permissions and set reviewerId/providerId
+      return await apiRequest("POST", "/api/reviews", {
+        taskId: id,
+        ...data,
+      });
+    },
+    onSuccess: () => {
+      toast({
+        title: "Review submitted",
+        description: "Your review has been submitted successfully",
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/tasks", id, "reviews"] });
+      reviewForm.reset();
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Review failed",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
   const onSubmit = (data: SubmissionFormData) => {
     submitMutation.mutate(data);
+  };
+
+  const onReviewSubmit = (data: ReviewFormData) => {
+    reviewMutation.mutate(data);
   };
 
   if (isLoading) {
@@ -469,6 +528,238 @@ export default function TaskDetail() {
               <p className="text-muted-foreground">
                 This task has been completed and approved by the provider
               </p>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Provider Reviews Section */}
+        {task.provider && reviews.length > 0 && (
+          <Card className="mt-6">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Star className="h-5 w-5" />
+                Provider Reviews ({reviews.length})
+              </CardTitle>
+              <CardDescription>
+                Reviews from performers who completed tasks from {task.provider.username}
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              {/* Average Ratings */}
+              {reviews.length > 0 && (
+                <div className="grid grid-cols-3 gap-4 p-4 bg-muted/50 rounded-lg">
+                  <div className="text-center">
+                    <p className="text-sm text-muted-foreground mb-1">Salary</p>
+                    <div className="flex items-center justify-center gap-1">
+                      <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
+                      <span className="font-semibold">
+                        {(reviews.reduce((sum, r) => sum + r.salaryRating, 0) / reviews.length).toFixed(1)}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="text-center">
+                    <p className="text-sm text-muted-foreground mb-1">Workload</p>
+                    <div className="flex items-center justify-center gap-1">
+                      <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
+                      <span className="font-semibold">
+                        {(reviews.reduce((sum, r) => sum + r.workloadRating, 0) / reviews.length).toFixed(1)}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="text-center">
+                    <p className="text-sm text-muted-foreground mb-1">Benefits</p>
+                    <div className="flex items-center justify-center gap-1">
+                      <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
+                      <span className="font-semibold">
+                        {(reviews.reduce((sum, r) => sum + r.benefitsRating, 0) / reviews.length).toFixed(1)}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Individual Reviews */}
+              <div className="space-y-4">
+                {reviews.map((review) => (
+                  <div key={review.id} className="border rounded-lg p-4" data-testid={`review-${review.id}`}>
+                    <div className="flex items-start gap-3 mb-3">
+                      <Avatar className="h-8 w-8">
+                        {review.reviewer.avatarUrl && (
+                          <AvatarImage src={review.reviewer.avatarUrl} alt={review.reviewer.username} />
+                        )}
+                        <AvatarFallback>
+                          {review.reviewer.username.substring(0, 2).toUpperCase()}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div className="flex-1">
+                        <p className="font-medium">{review.reviewer.username}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {new Date(review.createdAt).toLocaleDateString()}
+                        </p>
+                      </div>
+                    </div>
+                    
+                    <div className="grid grid-cols-3 gap-2 mb-3 text-sm">
+                      <div className="flex items-center gap-1">
+                        <span className="text-muted-foreground">Salary:</span>
+                        <div className="flex">
+                          {Array.from({ length: review.salaryRating }).map((_, i) => (
+                            <Star key={i} className="h-3 w-3 fill-yellow-400 text-yellow-400" />
+                          ))}
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <span className="text-muted-foreground">Workload:</span>
+                        <div className="flex">
+                          {Array.from({ length: review.workloadRating }).map((_, i) => (
+                            <Star key={i} className="h-3 w-3 fill-yellow-400 text-yellow-400" />
+                          ))}
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <span className="text-muted-foreground">Benefits:</span>
+                        <div className="flex">
+                          {Array.from({ length: review.benefitsRating }).map((_, i) => (
+                            <Star key={i} className="h-3 w-3 fill-yellow-400 text-yellow-400" />
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+
+                    {review.comment && (
+                      <div className="flex items-start gap-2 mt-3 pt-3 border-t">
+                        <MessageSquare className="h-4 w-4 text-muted-foreground mt-0.5" />
+                        <p className="text-sm text-muted-foreground">{review.comment}</p>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Review Form - Only for completed tasks by the performer */}
+        {task.status === "completed" && 
+         user?.role === "performer" && 
+         task.matchedPerformerId === user.id && 
+         task.provider &&
+         !reviews.some(r => r.reviewerId === user.id) && (
+          <Card className="mt-6">
+            <CardHeader>
+              <CardTitle>Rate This Provider</CardTitle>
+              <CardDescription>
+                Share your experience working with {task.provider.username}
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Form {...reviewForm}>
+                <form onSubmit={reviewForm.handleSubmit(onReviewSubmit)} className="space-y-6">
+                  <FormField
+                    control={reviewForm.control}
+                    name="salaryRating"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Salary & Compensation ({field.value}/5)</FormLabel>
+                        <FormControl>
+                          <Slider
+                            min={1}
+                            max={5}
+                            step={1}
+                            value={[field.value]}
+                            onValueChange={(vals) => field.onChange(vals[0])}
+                            className="py-4"
+                            data-testid="slider-salary-rating"
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={reviewForm.control}
+                    name="workloadRating"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Workload & Requirements ({field.value}/5)</FormLabel>
+                        <FormControl>
+                          <Slider
+                            min={1}
+                            max={5}
+                            step={1}
+                            value={[field.value]}
+                            onValueChange={(vals) => field.onChange(vals[0])}
+                            className="py-4"
+                            data-testid="slider-workload-rating"
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={reviewForm.control}
+                    name="benefitsRating"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Benefits & Perks ({field.value}/5)</FormLabel>
+                        <FormControl>
+                          <Slider
+                            min={1}
+                            max={5}
+                            step={1}
+                            value={[field.value]}
+                            onValueChange={(vals) => field.onChange(vals[0])}
+                            className="py-4"
+                            data-testid="slider-benefits-rating"
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={reviewForm.control}
+                    name="comment"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Review (Optional)</FormLabel>
+                        <FormControl>
+                          <Textarea
+                            {...field}
+                            placeholder="Share your experience working with this provider..."
+                            className="min-h-[100px]"
+                            data-testid="textarea-review-comment"
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <Button
+                    type="submit"
+                    disabled={reviewMutation.isPending}
+                    className="w-full"
+                    data-testid="button-submit-review"
+                  >
+                    {reviewMutation.isPending ? (
+                      <>
+                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
+                        Submitting Review...
+                      </>
+                    ) : (
+                      <>
+                        <Star className="h-4 w-4 mr-2" />
+                        Submit Review
+                      </>
+                    )}
+                  </Button>
+                </form>
+              </Form>
             </CardContent>
           </Card>
         )}
