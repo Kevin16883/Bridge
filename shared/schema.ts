@@ -390,3 +390,31 @@ export const insertUserRatingSchema = createInsertSchema(userRatings).omit({
 
 export type InsertUserRating = z.infer<typeof insertUserRatingSchema>;
 export type UserRating = typeof userRatings.$inferSelect;
+
+// Provider reviews table (multi-dimensional ratings for providers)
+export const providerReviews = pgTable("provider_reviews", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  reviewerId: varchar("reviewer_id").notNull().references(() => users.id), // Performer who writes the review
+  providerId: varchar("provider_id").notNull().references(() => users.id), // Provider being reviewed
+  taskId: varchar("task_id").notNull().references(() => tasks.id), // Task this review is for
+  salaryRating: integer("salary_rating").notNull(), // 1-5 rating for salary/compensation
+  workloadRating: integer("workload_rating").notNull(), // 1-5 rating for workload
+  benefitsRating: integer("benefits_rating").notNull(), // 1-5 rating for benefits
+  comment: text("comment"), // Optional review text
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => ({
+  uniqueReview: sql`UNIQUE (${table.reviewerId}, ${table.taskId})`,
+}));
+
+export const insertProviderReviewSchema = createInsertSchema(providerReviews).omit({
+  id: true,
+  createdAt: true,
+}).extend({
+  salaryRating: z.number().min(1).max(5),
+  workloadRating: z.number().min(1).max(5),
+  benefitsRating: z.number().min(1).max(5),
+  comment: z.string().optional(),
+});
+
+export type InsertProviderReview = z.infer<typeof insertProviderReviewSchema>;
+export type ProviderReview = typeof providerReviews.$inferSelect;
