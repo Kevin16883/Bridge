@@ -1,13 +1,7 @@
-import { useState } from "react";
 import { Link, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "./theme-toggle";
-import { ActivityCalendar } from "./activity-calendar";
-import { MySaves } from "./my-saves";
-import { MessageInbox } from "./message-inbox";
-import { MessageDialog } from "./message-dialog";
-import { UserAvatar } from "./user-avatar";
-import { LogOut } from "lucide-react";
+import { LogOut, User } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import {
   DropdownMenu,
@@ -21,10 +15,6 @@ import {
 export function Header() {
   const { user, logoutMutation } = useAuth();
   const [, setLocation] = useLocation();
-  const [messageDialogOpen, setMessageDialogOpen] = useState(false);
-  const [selectedUserId, setSelectedUserId] = useState<string>("");
-  const [selectedUsername, setSelectedUsername] = useState<string>("");
-  const [selectedAvatarUrl, setSelectedAvatarUrl] = useState<string | null>(null);
 
   const handleLogout = () => {
     logoutMutation.mutate(undefined, {
@@ -32,13 +22,6 @@ export function Header() {
         setLocation("/auth");
       },
     });
-  };
-
-  const handleOpenConversation = (userId: string, username: string, avatarUrl?: string | null) => {
-    setSelectedUserId(userId);
-    setSelectedUsername(username);
-    setSelectedAvatarUrl(avatarUrl || null);
-    setMessageDialogOpen(true);
   };
 
   return (
@@ -73,31 +56,17 @@ export function Header() {
                   </Link>
                 </>
               )}
-              <Link href="/community" className="text-sm text-muted-foreground hover:text-foreground transition-colors" data-testid="link-community">
-                Community
-              </Link>
             </nav>
           )}
         </div>
         
         <div className="flex items-center gap-2">
-          {user && (
-            <>
-              <MySaves />
-              <MessageInbox onOpenConversation={handleOpenConversation} />
-              <ActivityCalendar />
-            </>
-          )}
           <ThemeToggle />
           {user ? (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" className="gap-2" data-testid="button-user-menu">
-                  <UserAvatar 
-                    avatarUrl={user.avatarUrl} 
-                    username={user.username} 
-                    size="sm"
-                  />
+                  <User className="h-4 w-4" />
                   <span className="hidden md:inline">{user.username}</span>
                 </Button>
               </DropdownMenuTrigger>
@@ -129,16 +98,6 @@ export function Header() {
           )}
         </div>
       </div>
-      
-      {user && (
-        <MessageDialog
-          open={messageDialogOpen}
-          onOpenChange={setMessageDialogOpen}
-          userId={selectedUserId}
-          username={selectedUsername}
-          avatarUrl={selectedAvatarUrl}
-        />
-      )}
     </header>
   );
 }

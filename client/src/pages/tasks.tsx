@@ -1,12 +1,10 @@
-import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "wouter";
 import { Header } from "@/components/header";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Briefcase, DollarSign, Clock, Target, Search } from "lucide-react";
+import { Briefcase, DollarSign, Clock, Target } from "lucide-react";
 
 interface Task {
   id: string;
@@ -21,23 +19,11 @@ interface Task {
 }
 
 export default function Tasks() {
-  const [searchKeyword, setSearchKeyword] = useState("");
-  const [selectedSkills, setSelectedSkills] = useState<string[]>([]);
-
   const { data: tasks, isLoading } = useQuery<Task[]>({
-    queryKey: ["/api/tasks", { keyword: searchKeyword || undefined, skills: selectedSkills.length > 0 ? selectedSkills : undefined }],
+    queryKey: ["/api/tasks"],
   });
 
   const availableTasks = tasks?.filter(t => t.status === "pending" && !t.matchedPerformerId);
-
-  // Extract unique skills from all tasks
-  const allSkills = Array.from(new Set(tasks?.flatMap(t => t.skills) || []));
-
-  const toggleSkill = (skill: string) => {
-    setSelectedSkills(prev =>
-      prev.includes(skill) ? prev.filter(s => s !== skill) : [...prev, skill]
-    );
-  };
 
   const difficultyColors = {
     beginner: "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400",
@@ -58,48 +44,6 @@ export default function Tasks() {
           <p className="text-muted-foreground mt-1">
             Browse and apply for tasks that match your skills
           </p>
-        </div>
-
-        {/* Search and Filter */}
-        <div className="mb-6 space-y-4">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-            <Input
-              type="text"
-              placeholder="搜索任务标题或描述..."
-              value={searchKeyword}
-              onChange={(e) => setSearchKeyword(e.target.value)}
-              className="pl-10"
-              data-testid="input-search-tasks"
-            />
-          </div>
-          
-          {allSkills.length > 0 && (
-            <div className="flex flex-wrap gap-2">
-              <span className="text-sm text-muted-foreground self-center">技能筛选:</span>
-              {allSkills.map((skill) => (
-                <Badge
-                  key={skill}
-                  variant={selectedSkills.includes(skill) ? "default" : "outline"}
-                  className="cursor-pointer hover-elevate"
-                  onClick={() => toggleSkill(skill)}
-                  data-testid={`badge-skill-filter-${skill}`}
-                >
-                  {skill}
-                </Badge>
-              ))}
-              {selectedSkills.length > 0 && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setSelectedSkills([])}
-                  data-testid="button-clear-filters"
-                >
-                  清除筛选
-                </Button>
-              )}
-            </div>
-          )}
         </div>
 
         {isLoading ? (

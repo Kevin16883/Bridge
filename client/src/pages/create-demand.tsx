@@ -1,8 +1,7 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useLocation } from "wouter";
-import { useMutation, useQuery } from "@tanstack/react-query";
-import { ArrowLeft, Sparkles, AlertCircle, Plus, Trash2, Edit2, Save, Loader2 } from "lucide-react";
-import { useToast } from "@/hooks/use-toast";
+import { useMutation } from "@tanstack/react-query";
+import { ArrowLeft, Sparkles, AlertCircle, Plus, Trash2, Edit2, Save } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
@@ -22,83 +21,19 @@ interface Task {
   budget: number;
 }
 
-interface AITask {
-  title: string;
-  description: string;
-  skills: string[];
-  estimatedTime: string;
-  difficulty: string;
-  budget: string;
-}
-
 interface TaskBreakdown {
-  tasks: AITask[];
+  tasks: Task[];
   totalBudget: string;
   projectSummary: string;
 }
 
 export default function CreateDemand() {
-  const [location, setLocation] = useLocation();
-  const { toast } = useToast();
-  
-  // Get draft ID from URL params
-  const urlParams = new URLSearchParams(location.split("?")[1] || "");
-  const draftId = urlParams.get("draft");
-  
+  const [, setLocation] = useLocation();
   const [demand, setDemand] = useState("");
   const [step, setStep] = useState<"input" | "edit-tasks">("input");
   const [tasks, setTasks] = useState<Task[]>([]);
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
   const [skillInput, setSkillInput] = useState("");
-  const [currentProjectId, setCurrentProjectId] = useState<string | null>(draftId);
-
-  // Load draft if draftId exists
-  const { data: draftData } = useQuery<{ 
-    project: { id: string; originalDemand: string; status: string; totalBudget?: string };
-    tasks: Array<{
-      id: string;
-      title: string;
-      description: string;
-      skills: string[];
-      estimatedTime: string;
-      budget: number | string;
-      difficulty: string;
-    }>;
-  }>({
-    queryKey: ["/api/projects", draftId],
-    enabled: !!draftId,
-  });
-
-  useEffect(() => {
-    if (draftData && draftId) {
-      // Load draft data
-      setDemand(draftData.project.originalDemand || "");
-      setCurrentProjectId(draftId);
-      
-      // Load tasks if they exist
-      if (draftData.tasks && draftData.tasks.length > 0) {
-        const difficultyMap: Record<string, "easy" | "medium" | "hard"> = {
-          "beginner": "easy",
-          "intermediate": "medium",
-          "advanced": "hard",
-        };
-        
-        const loadedTasks = draftData.tasks.map(task => ({
-          title: task.title,
-          description: task.description,
-          skills: task.skills,
-          estimatedTime: task.estimatedTime,
-          budget: typeof task.budget === 'number' 
-            ? task.budget 
-            : parseFloat(String(task.budget).replace(/[^0-9.]/g, '')) || 100,
-          difficulty: difficultyMap[task.difficulty] || "medium",
-        }));
-        
-        setTasks(loadedTasks);
-        setStep("edit-tasks");
-      }
-    }
-  }, [draftData, draftId]);
 
   const analyzeMutation = useMutation({
     mutationFn: async (demandText: string) => {
@@ -133,72 +68,6 @@ export default function CreateDemand() {
       setLocation("/provider-dashboard");
     },
   });
-
-  const saveDraftMutation = useMutation({
-    mutationFn: async (params: { demandText: string; tasksData?: Task[] }) => {
-      const { demandText, tasksData } = params;
-      
-      // Prepare tasks in the format expected by backend
-      const formattedTasks = tasksData && tasksData.length > 0 ? tasksData.map(task => ({
-        title: task.title,
-        description: task.description,
-        skills: task.skills,
-        estimatedTime: task.estimatedTime,
-        budget: typeof task.budget === 'number' ? task.budget : parseFloat(task.budget),
-        difficulty: task.difficulty,
-      })) : undefined;
-      
-      const data = { 
-        originalDemand: demandText, 
-        status: "draft" as const,
-        tasks: formattedTasks,
-      };
-      
-      if (currentProjectId) {
-        // Update existing draft
-        const response = await apiRequest("PATCH", `/api/projects/${currentProjectId}`, data);
-        return await response.json();
-      } else {
-        // Create new draft
-        const response = await apiRequest("POST", "/api/projects", data);
-        const result = await response.json();
-        setCurrentProjectId(result.id);
-        // Update URL to include draft ID so future saves update the same draft
-        setLocation(`/create-demand?draft=${result.id}`);
-        return result;
-      }
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/projects"] });
-      toast({
-        title: "草稿已保存",
-        description: "您的需求已保存为草稿",
-      });
-    },
-    onError: () => {
-      toast({
-        title: "保存失败",
-        description: "保存草稿失败，请重试",
-        variant: "destructive",
-      });
-    },
-  });
-
-  // Auto-save draft when demand or tasks change (debounced)
-  useEffect(() => {
-    if (demand.trim().length >= 10) {
-      const timer = setTimeout(() => {
-        saveDraftMutation.mutate({ demandText: demand, tasksData: tasks.length > 0 ? tasks : undefined });
-      }, 3000); // 3 seconds debounce
-      return () => clearTimeout(timer);
-    }
-  }, [demand, tasks]);
-  
-  const handleSaveDraft = () => {
-    if (demand.trim().length >= 10) {
-      saveDraftMutation.mutate({ demandText: demand, tasksData: tasks.length > 0 ? tasks : undefined });
-    }
-  };
 
   const handleAnalyzeWithAI = () => {
     if (demand.trim().length < 10) return;
@@ -545,15 +414,7 @@ export default function CreateDemand() {
             </Alert>
 
             <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <label className="text-sm font-medium">Your Demand</label>
-                {saveDraftMutation.isPending && (
-                  <span className="text-xs text-muted-foreground flex items-center gap-1">
-                    <Loader2 className="w-3 h-3 animate-spin" />
-                    自动保存中...
-                  </span>
-                )}
-              </div>
+              <label className="text-sm font-medium">Your Demand</label>
               <Textarea
                 placeholder="Example: I need to launch a new eco-friendly coffee cup product on social media. I want engaging content that highlights sustainability features and appeals to environmentally conscious consumers aged 25-40..."
                 className="min-h-[200px] resize-none"
@@ -563,7 +424,6 @@ export default function CreateDemand() {
               />
               <p className="text-xs text-muted-foreground">
                 Minimum 10 characters • {demand.length} characters
-                {currentProjectId && " • 草稿已保存"}
               </p>
             </div>
 

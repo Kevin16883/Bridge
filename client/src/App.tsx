@@ -16,33 +16,19 @@ import ProjectDetail from "@/pages/project-detail";
 import TaskDetail from "@/pages/task-detail";
 import TaskSubmissions from "@/pages/task-submissions";
 import Tasks from "@/pages/tasks";
-import Community from "@/pages/community";
-import QuestionDetail from "@/pages/question-detail";
-import ApplicationHistory from "@/pages/application-history";
-import Drafts from "@/pages/drafts";
-import UserProfile from "@/pages/user-profile";
 
 function Router() {
   return (
     <Switch>
       <Route path="/" component={Home} />
       <Route path="/auth" component={AuthPage} />
-      <Route path="/login" component={AuthPage} />
-      <Route path="/register" component={AuthPage} />
       <ProtectedRoute path="/provider-dashboard" component={ProviderDashboard} />
       <ProtectedRoute path="/performer-dashboard" component={PerformerDashboard} />
       <ProtectedRoute path="/create-demand" component={CreateDemand} />
-      <ProtectedRoute path="/drafts" component={Drafts} />
       <ProtectedRoute path="/projects/:projectId" component={ProjectDetail} />
       <ProtectedRoute path="/projects/:projectId/tasks/:taskId/submissions" component={TaskSubmissions} />
       <ProtectedRoute path="/tasks" component={Tasks} />
       <ProtectedRoute path="/tasks/:id" component={TaskDetail} />
-      <ProtectedRoute path="/applications" component={ApplicationHistory} />
-      <ProtectedRoute path="/users/:userId" component={UserProfile} />
-      <ProtectedRoute path="/community" component={Community} />
-      <ProtectedRoute path="/community/:id" component={QuestionDetail} />
-      <ProtectedRoute path="/questions" component={Community} />
-      <ProtectedRoute path="/questions/:id" component={QuestionDetail} />
       <Route component={NotFound} />
     </Switch>
   );
