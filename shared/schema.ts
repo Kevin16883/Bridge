@@ -135,3 +135,242 @@ export const insertTaskApplicationSchema = createInsertSchema(taskApplications).
 
 export type InsertTaskApplication = z.infer<typeof insertTaskApplicationSchema>;
 export type TaskApplication = typeof taskApplications.$inferSelect;
+
+// Questions table (Q&A Community)
+export const questions = pgTable("questions", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id),
+  title: text("title").notNull(),
+  content: text("content").notNull(),
+  tags: text("tags").array().notNull(),
+  category: text("category").notNull(),
+  viewCount: integer("view_count").notNull().default(0),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const insertQuestionSchema = createInsertSchema(questions).omit({
+  id: true,
+  createdAt: true,
+  viewCount: true,
+});
+
+export type InsertQuestion = z.infer<typeof insertQuestionSchema>;
+export type Question = typeof questions.$inferSelect;
+
+// Question answers table
+export const questionAnswers = pgTable("question_answers", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  questionId: varchar("question_id").notNull().references(() => questions.id),
+  userId: varchar("user_id").notNull().references(() => users.id),
+  content: text("content").notNull(),
+  sourceCommentIds: text("source_comment_ids").array().notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const insertQuestionAnswerSchema = createInsertSchema(questionAnswers).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type InsertQuestionAnswer = z.infer<typeof insertQuestionAnswerSchema>;
+export type QuestionAnswer = typeof questionAnswers.$inferSelect;
+
+// Comments table
+export const comments = pgTable("comments", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  questionId: varchar("question_id").notNull().references(() => questions.id),
+  userId: varchar("user_id").notNull().references(() => users.id),
+  content: text("content").notNull(),
+  upvotes: integer("upvotes").notNull().default(0),
+  downvotes: integer("downvotes").notNull().default(0),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const insertCommentSchema = createInsertSchema(comments).omit({
+  id: true,
+  createdAt: true,
+  upvotes: true,
+  downvotes: true,
+});
+
+export type InsertComment = z.infer<typeof insertCommentSchema>;
+export type Comment = typeof comments.$inferSelect;
+
+// Comment votes table
+export const commentVotes = pgTable("comment_votes", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  commentId: varchar("comment_id").notNull().references(() => comments.id),
+  userId: varchar("user_id").notNull().references(() => users.id),
+  voteType: text("vote_type").notNull().$type<"upvote" | "downvote">(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const insertCommentVoteSchema = createInsertSchema(commentVotes).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type InsertCommentVote = z.infer<typeof insertCommentVoteSchema>;
+export type CommentVote = typeof commentVotes.$inferSelect;
+
+// Saved comments table
+export const savedComments = pgTable("saved_comments", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id),
+  commentId: varchar("comment_id").notNull().references(() => comments.id),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const insertSavedCommentSchema = createInsertSchema(savedComments).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type InsertSavedComment = z.infer<typeof insertSavedCommentSchema>;
+export type SavedComment = typeof savedComments.$inferSelect;
+
+// Saved questions table
+export const savedQuestions = pgTable("saved_questions", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id),
+  questionId: varchar("question_id").notNull().references(() => questions.id),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const insertSavedQuestionSchema = createInsertSchema(savedQuestions).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type InsertSavedQuestion = z.infer<typeof insertSavedQuestionSchema>;
+export type SavedQuestion = typeof savedQuestions.$inferSelect;
+
+// Messages table (Private messaging)
+export const messages = pgTable("messages", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  senderId: varchar("sender_id").notNull().references(() => users.id),
+  receiverId: varchar("receiver_id").notNull().references(() => users.id),
+  content: text("content").notNull(),
+  isRead: integer("is_read").notNull().default(0),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const insertMessageSchema = createInsertSchema(messages).omit({
+  id: true,
+  createdAt: true,
+  isRead: true,
+});
+
+export type InsertMessage = z.infer<typeof insertMessageSchema>;
+export type Message = typeof messages.$inferSelect;
+
+// Notifications table
+export const notifications = pgTable("notifications", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id),
+  type: text("type").notNull(),
+  content: text("content").notNull(),
+  relatedId: varchar("related_id"),
+  isRead: integer("is_read").notNull().default(0),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const insertNotificationSchema = createInsertSchema(notifications).omit({
+  id: true,
+  createdAt: true,
+  isRead: true,
+});
+
+export type InsertNotification = z.infer<typeof insertNotificationSchema>;
+export type Notification = typeof notifications.$inferSelect;
+
+// Follows table
+export const follows = pgTable("follows", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  followerId: varchar("follower_id").notNull().references(() => users.id),
+  followingId: varchar("following_id").notNull().references(() => users.id),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const insertFollowSchema = createInsertSchema(follows).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type InsertFollow = z.infer<typeof insertFollowSchema>;
+export type Follow = typeof follows.$inferSelect;
+
+// Blocked users table
+export const blockedUsers = pgTable("blocked_users", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  blockerId: varchar("blocker_id").notNull().references(() => users.id),
+  blockedId: varchar("blocked_id").notNull().references(() => users.id),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const insertBlockedUserSchema = createInsertSchema(blockedUsers).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type InsertBlockedUser = z.infer<typeof insertBlockedUserSchema>;
+export type BlockedUser = typeof blockedUsers.$inferSelect;
+
+// User ratings table (Multi-dimensional provider reviews)
+export const userRatings = pgTable("user_ratings", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  ratedUserId: varchar("rated_user_id").notNull().references(() => users.id),
+  raterUserId: varchar("rater_user_id").notNull().references(() => users.id),
+  taskId: varchar("task_id").notNull().references(() => tasks.id),
+  rating: integer("rating").notNull(),
+  comment: text("comment"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const insertUserRatingSchema = createInsertSchema(userRatings).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type InsertUserRating = z.infer<typeof insertUserRatingSchema>;
+export type UserRating = typeof userRatings.$inferSelect;
+
+// Time tracking table
+export const timeTracking = pgTable("time_tracking", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  performerId: varchar("performer_id").notNull().references(() => users.id),
+  taskId: varchar("task_id").notNull().references(() => tasks.id),
+  date: text("date").notNull(),
+  duration: integer("duration").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const insertTimeTrackingSchema = createInsertSchema(timeTracking).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type InsertTimeTracking = z.infer<typeof insertTimeTrackingSchema>;
+export type TimeTracking = typeof timeTracking.$inferSelect;
+
+// Weekly reports table
+export const weeklyReports = pgTable("weekly_reports", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  performerId: varchar("performer_id").notNull().references(() => users.id),
+  weekStart: text("week_start").notNull(),
+  weekEnd: text("week_end").notNull(),
+  summary: text("summary").notNull(),
+  tasksCompleted: integer("tasks_completed").notNull().default(0),
+  totalHours: integer("total_hours").notNull().default(0),
+  evaluation: text("evaluation").notNull(),
+  suggestions: text("suggestions").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const insertWeeklyReportSchema = createInsertSchema(weeklyReports).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type InsertWeeklyReport = z.infer<typeof insertWeeklyReportSchema>;
+export type WeeklyReport = typeof weeklyReports.$inferSelect;
