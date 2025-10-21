@@ -8,6 +8,38 @@ The system serves two primary user personas:
 - **Demand Providers**: Users who describe their needs in natural language, receive AI-decomposed tasks, and review performer submissions
 - **Task Performers**: Users who complete provider tasks, submit their work, and earn badges upon provider approval
 
+## Recent Changes (October 21, 2025)
+
+**Schema Layer Expansion**
+- Added TypeScript schema definitions for 14 additional database tables in `shared/schema.ts`
+- All tables now have complete Drizzle ORM schema, Zod validation schemas, and TypeScript types
+
+**New Features - UI Layer Implemented**
+1. **Q&A Community** (`/community`, `/community/ask`)
+   - Question listing with search and category filtering
+   - Ask question form with tags support
+   - Integration-ready for API endpoints
+   
+2. **Private Messaging** (`/messages`)
+   - Conversation list with unread counts
+   - Real-time messaging interface
+   - Message sending and receiving UI
+
+3. **Notifications System**
+   - Dropdown notification center in header
+   - Unread notification badges
+   - Mark as read functionality
+
+4. **User Profiles** (`/users/:userId`)
+   - User statistics and achievements
+   - Badge showcase
+   - Follow/unfollow functionality
+   - Send message integration
+
+**Bug Fixes**
+- Fixed ProviderDashboard crash when displaying projects with 'draft' or 'open' status
+- Added proper status icon mappings for all project states
+
 ## User Preferences
 
 Preferred communication style: Simple, everyday language.

@@ -1,6 +1,7 @@
 import { Link, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "./theme-toggle";
+import { NotificationsDropdown } from "./notifications-dropdown";
 import { LogOut, User } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import {
@@ -56,12 +57,19 @@ export function Header() {
                   </Link>
                 </>
               )}
+              <Link href="/community" className="text-sm text-muted-foreground hover:text-foreground transition-colors" data-testid="link-community">
+                Community
+              </Link>
+              <Link href="/messages" className="text-sm text-muted-foreground hover:text-foreground transition-colors" data-testid="link-messages">
+                Messages
+              </Link>
             </nav>
           )}
         </div>
         
         <div className="flex items-center gap-2">
           <ThemeToggle />
+          {user && <NotificationsDropdown />}
           {user ? (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>

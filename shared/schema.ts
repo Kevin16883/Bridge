@@ -26,7 +26,7 @@ export const projects = pgTable("projects", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   providerId: varchar("provider_id").notNull().references(() => users.id),
   originalDemand: text("original_demand").notNull(),
-  status: text("status").notNull().$type<"draft" | "active" | "completed">().default("draft"),
+  status: text("status").notNull().$type<"draft" | "open" | "active" | "completed" | "cancelled">().default("draft"),
   totalBudget: text("total_budget"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
