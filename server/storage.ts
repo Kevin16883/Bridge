@@ -677,7 +677,7 @@ export class DatabaseStorage implements IStorage {
     ]);
     
     const conversations = [];
-    for (const otherUserId of otherUserIds) {
+    for (const otherUserId of Array.from(otherUserIds)) {
       // Get last message
       const lastMessages = await db.select()
         .from(messages)

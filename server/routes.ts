@@ -1314,11 +1314,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/messages/:userId", requireAuth, async (req, res, next) => {
     try {
       const messages = await storage.getMessagesBetweenUsers(req.user!.id, req.params.userId);
-      
+      res.json(messages);
+    } catch (error) {
+      next(error);
+    }
+  });
+  
+  app.post("/api/messages/:userId/read", requireAuth, async (req, res, next) => {
+    try {
       // Mark messages from the other user as read
       await storage.markMessagesAsRead(req.params.userId, req.user!.id);
-      
-      res.json(messages);
+      res.json({ success: true });
     } catch (error) {
       next(error);
     }

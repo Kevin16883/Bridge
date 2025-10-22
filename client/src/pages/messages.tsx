@@ -56,8 +56,9 @@ export default function Messages() {
     mutationFn: async (data: { receiverId: string; content: string }) => {
       return apiRequest("POST", "/api/messages", data);
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/messages"] });
+    onSuccess: (_, variables) => {
+      // Invalidate all messages queries including the specific conversation
+      queryClient.invalidateQueries({ queryKey: ["/api/messages"], refetchType: 'all' });
       queryClient.invalidateQueries({ queryKey: ["/api/messages/conversations"] });
       setMessageText("");
       toast({
@@ -73,6 +74,24 @@ export default function Messages() {
       });
     },
   });
+  
+  // Mark messages as read when selecting a conversation (only when there are unread messages)
+  useEffect(() => {
+    if (selectedUserId && conversations) {
+      const selectedConv = conversations.find(c => c.userId === selectedUserId);
+      if (selectedConv && selectedConv.unreadCount > 0) {
+        // Only mark as read if there are unread messages
+        apiRequest("POST", `/api/messages/${selectedUserId}/read`, {})
+          .then(() => {
+            // Invalidate conversations to update unread counts
+            queryClient.invalidateQueries({ queryKey: ["/api/messages/conversations"] });
+          })
+          .catch(() => {
+            // Silently fail - this is not critical
+          });
+      }
+    }
+  }, [selectedUserId, conversations]);
 
   const handleSendMessage = () => {
     if (!selectedUserId || !messageText.trim()) return;
