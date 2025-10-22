@@ -18,7 +18,7 @@ import TaskSubmissions from "@/pages/task-submissions";
 import Tasks from "@/pages/tasks";
 import Community from "@/pages/community";
 import AskQuestion from "@/pages/ask-question";
-import Messages from "@/pages/messages";
+import QuestionDetail from "@/pages/question-detail";
 import UserProfile from "@/pages/profile";
 import Applications from "@/pages/applications";
 
@@ -36,7 +36,7 @@ function Router() {
       <ProtectedRoute path="/tasks/:id" component={TaskDetail} />
       <ProtectedRoute path="/community" component={Community} />
       <ProtectedRoute path="/community/ask" component={AskQuestion} />
-      <ProtectedRoute path="/messages" component={Messages} />
+      <ProtectedRoute path="/community/questions/:id" component={QuestionDetail} />
       <ProtectedRoute path="/users/:userId" component={UserProfile} />
       <ProtectedRoute path="/applications" component={Applications} />
       <Route component={NotFound} />

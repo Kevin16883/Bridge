@@ -1,5 +1,5 @@
 import { 
-  users, projects, tasks, taskSubmissions, badges, userBadges, taskApplications, questions,
+  users, projects, tasks, taskSubmissions, badges, userBadges, taskApplications, questions, notifications,
   type User, type InsertUser,
   type Project, type InsertProject,
   type Task, type InsertTask,
@@ -7,7 +7,8 @@ import {
   type Badge, type InsertBadge,
   type UserBadge, type InsertUserBadge,
   type TaskApplication, type InsertTaskApplication,
-  type Question, type InsertQuestion
+  type Question, type InsertQuestion,
+  type Notification, type InsertNotification
 } from "@shared/schema";
 import { db, pool } from "./db";
 import { eq, and, desc, isNull } from "drizzle-orm";
@@ -69,6 +70,11 @@ export interface IStorage {
   getQuestion(id: string): Promise<Question | undefined>;
   getAllQuestions(): Promise<Array<Question & { authorUsername: string, answerCount: number, commentCount: number }>>;
   incrementQuestionViews(id: string): Promise<void>;
+  
+  // Notification operations
+  createNotification(notification: InsertNotification): Promise<Notification>;
+  getNotificationsByUser(userId: string): Promise<Notification[]>;
+  markNotificationAsRead(id: string): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -314,6 +320,22 @@ export class DatabaseStorage implements IStorage {
         .set({ viewCount: question.viewCount + 1 })
         .where(eq(questions.id, id));
     }
+  }
+  
+  // Notification operations
+  async createNotification(insertNotification: InsertNotification): Promise<Notification> {
+    const [notification] = await db.insert(notifications).values(insertNotification).returning();
+    return notification;
+  }
+  
+  async getNotificationsByUser(userId: string): Promise<Notification[]> {
+    return await db.select().from(notifications)
+      .where(eq(notifications.userId, userId))
+      .orderBy(desc(notifications.createdAt));
+  }
+  
+  async markNotificationAsRead(id: string): Promise<void> {
+    await db.update(notifications).set({ isRead: 1 }).where(eq(notifications.id, id));
   }
 }
 

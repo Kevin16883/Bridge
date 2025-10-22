@@ -313,12 +313,143 @@ export async function registerRoutes(app: Express): Promise<Server> {
         performerId: req.user!.id,
         status: "pending",
       });
+      
+      // Get project to find provider and send notification
+      const project = await storage.getProject(task.projectId);
+      if (project) {
+        await storage.createNotification({
+          userId: project.providerId,
+          type: "task_application",
+          content: `${req.user!.username} applied for task: ${task.title}`,
+          relatedId: application.id,
+        });
+      }
 
       res.status(201).json(application);
     } catch (error) {
       if (error instanceof z.ZodError) {
         return res.status(400).json({ error: error.errors[0].message });
       }
+      next(error);
+    }
+  });
+
+  // Get applications for a task (provider only - to see who applied)
+  app.get("/api/tasks/:id/applications", requireAuth, async (req, res, next) => {
+    try {
+      const taskId = req.params.id;
+      const task = await storage.getTask(taskId);
+      
+      if (!task) {
+        return res.status(404).json({ error: "Task not found" });
+      }
+      
+      // Get project to verify provider ownership
+      const project = await storage.getProject(task.projectId);
+      if (!project || project.providerId !== req.user!.id) {
+        return res.status(403).json({ error: "Access denied" });
+      }
+      
+      const applications = await storage.getApplicationsByTask(taskId);
+      res.json(applications);
+    } catch (error) {
+      next(error);
+    }
+  });
+  
+  // Accept a task application (provider only)
+  app.post("/api/tasks/:taskId/applications/:applicationId/accept", requireProvider, async (req, res, next) => {
+    try {
+      const { taskId, applicationId } = req.params;
+      const task = await storage.getTask(taskId);
+      
+      if (!task) {
+        return res.status(404).json({ error: "Task not found" });
+      }
+      
+      // Verify provider owns this task
+      const project = await storage.getProject(task.projectId);
+      if (!project || project.providerId !== req.user!.id) {
+        return res.status(403).json({ error: "Access denied" });
+      }
+      
+      // Get the application to find performer
+      const applications = await storage.getApplicationsByTask(taskId);
+      const application = applications.find(app => app.id === applicationId);
+      
+      if (!application) {
+        return res.status(404).json({ error: "Application not found" });
+      }
+      
+      // Accept the application
+      await storage.updateApplicationStatus(applicationId, "accepted");
+      
+      // Assign performer to task
+      await storage.matchTaskToPerformer(taskId, application.performerId);
+      
+      // Send notification to performer
+      await storage.createNotification({
+        userId: application.performerId,
+        type: "application_accepted",
+        content: `Your application for task "${task.title}" has been accepted!`,
+        relatedId: taskId,
+      });
+      
+      // Reject all other pending applications
+      const otherApplications = applications.filter(app => app.id !== applicationId && app.status === "pending");
+      for (const app of otherApplications) {
+        await storage.updateApplicationStatus(app.id, "rejected");
+        await storage.createNotification({
+          userId: app.performerId,
+          type: "application_rejected",
+          content: `Your application for task "${task.title}" was not selected.`,
+          relatedId: taskId,
+        });
+      }
+      
+      res.json({ success: true });
+    } catch (error) {
+      next(error);
+    }
+  });
+  
+  // Reject a task application (provider only)
+  app.post("/api/tasks/:taskId/applications/:applicationId/reject", requireProvider, async (req, res, next) => {
+    try {
+      const { taskId, applicationId } = req.params;
+      const task = await storage.getTask(taskId);
+      
+      if (!task) {
+        return res.status(404).json({ error: "Task not found" });
+      }
+      
+      // Verify provider owns this task
+      const project = await storage.getProject(task.projectId);
+      if (!project || project.providerId !== req.user!.id) {
+        return res.status(403).json({ error: "Access denied" });
+      }
+      
+      // Get the application
+      const applications = await storage.getApplicationsByTask(taskId);
+      const application = applications.find(app => app.id === applicationId);
+      
+      if (!application) {
+        return res.status(404).json({ error: "Application not found" });
+      }
+      
+      // Reject the application
+      await storage.updateApplicationStatus(applicationId, "rejected");
+      
+      // Send notification to performer
+      await storage.createNotification({
+        userId: application.performerId,
+        type: "application_rejected",
+        content: `Your application for task "${task.title}" was not selected.`,
+        relatedId: taskId,
+      });
+      
+      res.json({ success: true });
+    } catch (error) {
       next(error);
     }
   });
