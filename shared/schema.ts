@@ -18,6 +18,7 @@ export const users = pgTable("users", {
   website: text("website"),
   skills: text("skills").array(),
   rating: integer("rating").default(0),
+  isProfilePublic: integer("is_profile_public").notNull().default(1),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
