@@ -1279,6 +1279,51 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Message routes
+  app.post("/api/messages", requireAuth, async (req, res, next) => {
+    try {
+      const { receiverId, content } = z.object({
+        receiverId: z.string(),
+        content: z.string().min(1),
+      }).parse(req.body);
+      
+      const message = await storage.createMessage({
+        senderId: req.user!.id,
+        receiverId,
+        content,
+      });
+      
+      res.json(message);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ error: error.errors[0].message });
+      }
+      next(error);
+    }
+  });
+  
+  app.get("/api/messages/conversations", requireAuth, async (req, res, next) => {
+    try {
+      const conversations = await storage.getConversations(req.user!.id);
+      res.json(conversations);
+    } catch (error) {
+      next(error);
+    }
+  });
+  
+  app.get("/api/messages/:userId", requireAuth, async (req, res, next) => {
+    try {
+      const messages = await storage.getMessagesBetweenUsers(req.user!.id, req.params.userId);
+      
+      // Mark messages from the other user as read
+      await storage.markMessagesAsRead(req.params.userId, req.user!.id);
+      
+      res.json(messages);
+    } catch (error) {
+      next(error);
+    }
+  });
+
   const httpServer = createServer(app);
 
   return httpServer;

@@ -21,6 +21,7 @@ import AskQuestion from "@/pages/ask-question";
 import QuestionDetail from "@/pages/question-detail";
 import UserProfile from "@/pages/profile";
 import Applications from "@/pages/applications";
+import Messages from "@/pages/messages";
 
 function Router() {
   return (
@@ -39,6 +40,8 @@ function Router() {
       <ProtectedRoute path="/community/questions/:id" component={QuestionDetail} />
       <ProtectedRoute path="/users/:userId" component={UserProfile} />
       <ProtectedRoute path="/applications" component={Applications} />
+      <ProtectedRoute path="/messages" component={Messages} />
+      <ProtectedRoute path="/profile" component={UserProfile} />
       <Route component={NotFound} />
     </Switch>
   );

@@ -738,8 +738,24 @@ export default function Profile() {
 
             <TabsContent value="messages" className="mt-4">
               <Card>
-                <CardContent className="pt-6 text-center">
-                  <p className="text-muted-foreground">Messages feature coming soon...</p>
+                <CardHeader className="flex flex-row items-center justify-between">
+                  <div>
+                    <CardTitle className="flex items-center gap-2">
+                      <MessageSquare className="w-5 h-5" />
+                      Messages
+                    </CardTitle>
+                    <CardDescription>Your conversations</CardDescription>
+                  </div>
+                  <Link href="/messages">
+                    <Button variant="outline" size="sm">
+                      View All
+                    </Button>
+                  </Link>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-sm text-muted-foreground">
+                    Click "View All" to see your messages and start conversations.
+                  </p>
                 </CardContent>
               </Card>
             </TabsContent>

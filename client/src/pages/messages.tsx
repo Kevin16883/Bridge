@@ -1,5 +1,5 @@
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -11,6 +11,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { Send, MessageSquare } from "lucide-react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { useLocation } from "wouter";
 import type { Message } from "@shared/schema";
 
 interface MessageWithUsers extends Message {
@@ -29,8 +30,18 @@ interface Conversation {
 export default function Messages() {
   const { user } = useAuth();
   const { toast } = useToast();
+  const [location] = useLocation();
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
   const [messageText, setMessageText] = useState("");
+  
+  // Get user ID from URL query parameter
+  useEffect(() => {
+    const params = new URLSearchParams(location.split('?')[1]);
+    const userParam = params.get('user');
+    if (userParam) {
+      setSelectedUserId(userParam);
+    }
+  }, [location]);
 
   const { data: conversations } = useQuery<Conversation[]>({
     queryKey: ["/api/messages/conversations"],

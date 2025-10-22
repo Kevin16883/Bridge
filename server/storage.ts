@@ -1,5 +1,5 @@
 import { 
-  users, projects, tasks, taskSubmissions, badges, userBadges, taskApplications, questions, notifications, questionVotes, savedQuestions, comments, commentVotes, follows, userRatings,
+  users, projects, tasks, taskSubmissions, badges, userBadges, taskApplications, questions, notifications, questionVotes, savedQuestions, comments, commentVotes, follows, userRatings, messages,
   type User, type InsertUser,
   type Project, type InsertProject,
   type Task, type InsertTask,
@@ -11,7 +11,8 @@ import {
   type Notification, type InsertNotification,
   type Comment, type InsertComment,
   type Follow, type InsertFollow,
-  type UserRating, type InsertUserRating
+  type UserRating, type InsertUserRating,
+  type Message, type InsertMessage
 } from "@shared/schema";
 import { db, pool } from "./db";
 import { eq, and, desc, isNull } from "drizzle-orm";
@@ -114,6 +115,18 @@ export interface IStorage {
   rateUser(ratedUserId: string, raterUserId: string, taskId: string, rating: number, comment?: string): Promise<void>;
   getUserAverageRating(userId: string): Promise<number>;
   getUserRatingCount(userId: string): Promise<number>;
+  
+  // Message operations
+  createMessage(message: InsertMessage): Promise<Message>;
+  getConversations(userId: string): Promise<Array<{
+    userId: string;
+    username: string;
+    lastMessage: string;
+    lastMessageTime: string;
+    unreadCount: number;
+  }>>;
+  getMessagesBetweenUsers(userId1: string, userId2: string): Promise<Array<Message & { senderUsername: string, receiverUsername: string }>>;
+  markMessagesAsRead(senderId: string, receiverId: string): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -623,6 +636,160 @@ export class DatabaseStorage implements IStorage {
     const ratings = await db.select().from(userRatings)
       .where(eq(userRatings.ratedUserId, userId));
     return ratings.length;
+  }
+  
+  // Message operations
+  async createMessage(insertMessage: InsertMessage): Promise<Message> {
+    const [message] = await db.insert(messages).values(insertMessage).returning();
+    
+    // Create notification for receiver
+    await this.createNotification({
+      userId: insertMessage.receiverId,
+      type: 'message',
+      content: `New message from a user`,
+      relatedId: message.id,
+    });
+    
+    return message;
+  }
+  
+  async getConversations(userId: string): Promise<Array<{
+    userId: string;
+    username: string;
+    lastMessage: string;
+    lastMessageTime: string;
+    unreadCount: number;
+  }>> {
+    // Get all users the current user has messaged with
+    const sentMessages = await db.select({
+      otherUserId: messages.receiverId,
+    }).from(messages)
+      .where(eq(messages.senderId, userId));
+    
+    const receivedMessages = await db.select({
+      otherUserId: messages.senderId,
+    }).from(messages)
+      .where(eq(messages.receiverId, userId));
+    
+    const otherUserIds = new Set([
+      ...sentMessages.map(m => m.otherUserId),
+      ...receivedMessages.map(m => m.otherUserId),
+    ]);
+    
+    const conversations = [];
+    for (const otherUserId of otherUserIds) {
+      // Get last message
+      const lastMessages = await db.select()
+        .from(messages)
+        .where(
+          and(
+            eq(messages.senderId, userId),
+            eq(messages.receiverId, otherUserId)
+          )
+        )
+        .orderBy(desc(messages.createdAt))
+        .limit(1);
+      
+      const lastReceivedMessages = await db.select()
+        .from(messages)
+        .where(
+          and(
+            eq(messages.senderId, otherUserId),
+            eq(messages.receiverId, userId)
+          )
+        )
+        .orderBy(desc(messages.createdAt))
+        .limit(1);
+      
+      const allLast = [...lastMessages, ...lastReceivedMessages].sort((a, b) => 
+        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+      );
+      
+      const lastMessage = allLast[0];
+      
+      if (!lastMessage) continue;
+      
+      // Get unread count
+      const unreadMessages = await db.select()
+        .from(messages)
+        .where(
+          and(
+            eq(messages.senderId, otherUserId),
+            eq(messages.receiverId, userId),
+            eq(messages.isRead, 0)
+          )
+        );
+      
+      // Get other user's info
+      const otherUser = await this.getUser(otherUserId);
+      if (!otherUser) continue;
+      
+      conversations.push({
+        userId: otherUserId,
+        username: otherUser.username,
+        lastMessage: lastMessage.content,
+        lastMessageTime: lastMessage.createdAt.toISOString(),
+        unreadCount: unreadMessages.length,
+      });
+    }
+    
+    // Sort by last message time
+    conversations.sort((a, b) => 
+      new Date(b.lastMessageTime).getTime() - new Date(a.lastMessageTime).getTime()
+    );
+    
+    return conversations;
+  }
+  
+  async getMessagesBetweenUsers(userId1: string, userId2: string): Promise<Array<Message & { senderUsername: string, receiverUsername: string }>> {
+    const allMessages = await db.select()
+      .from(messages)
+      .where(
+        and(
+          eq(messages.senderId, userId1),
+          eq(messages.receiverId, userId2)
+        )
+      );
+    
+    const allMessages2 = await db.select()
+      .from(messages)
+      .where(
+        and(
+          eq(messages.senderId, userId2),
+          eq(messages.receiverId, userId1)
+        )
+      );
+    
+    const combined = [...allMessages, ...allMessages2].sort((a, b) => 
+      new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+    );
+    
+    const result = [];
+    for (const msg of combined) {
+      const sender = await this.getUser(msg.senderId);
+      const receiver = await this.getUser(msg.receiverId);
+      
+      if (sender && receiver) {
+        result.push({
+          ...msg,
+          senderUsername: sender.username,
+          receiverUsername: receiver.username,
+        });
+      }
+    }
+    
+    return result;
+  }
+  
+  async markMessagesAsRead(senderId: string, receiverId: string): Promise<void> {
+    await db.update(messages)
+      .set({ isRead: 1 })
+      .where(
+        and(
+          eq(messages.senderId, senderId),
+          eq(messages.receiverId, receiverId)
+        )
+      );
   }
 }
 
