@@ -8,7 +8,43 @@ The system serves two primary user personas:
 - **Demand Providers**: Users who describe their needs in natural language, receive AI-decomposed tasks, and review performer submissions
 - **Task Performers**: Users who complete provider tasks, submit their work, and earn badges upon provider approval
 
-## Recent Changes (October 21, 2025)
+## Recent Changes (October 22, 2025)
+
+**Critical Bug Fix - Task Visibility**
+- Fixed `getAvailableTasks()` method to properly filter available tasks
+- Now correctly checks both `status="pending"` AND `matchedPerformerId IS NULL`
+- Performers can now see Provider's published tasks on the Tasks page
+
+**New Features - Applications Management**
+1. **Applications Page** (`/applications`)
+   - Displays all task applications with full task details
+   - Separated into "Pending" and "Past Applications" sections
+   - Shows application status (pending/accepted/rejected)
+   - View task details directly from application cards
+   - Cancel pending applications with confirmation dialog
+   - Navigation link in Header for Performers
+
+2. **Search & Filter - Performer Tasks** (`/tasks`)
+   - Keyword search across title, description, and required skills
+   - Difficulty level filter (easy/medium/hard)
+   - Skill tag filter with dynamic skill list generation
+   - Clear filters button when active
+   - Shows "X of Y tasks available" count
+
+3. **Search & Filter - Provider Dashboard** (`/provider-dashboard-real`)
+   - Keyword search by demand description
+   - Status filter (all/draft/open/active/completed/cancelled)
+   - Clear filters button when active
+   - Shows "Showing X of Y projects" count
+   - Empty state with clear filters option
+
+**Backend Enhancements**
+- Added `GET /api/performer/applications` - Get applications with task details
+- Added `DELETE /api/applications/:id` - Cancel application
+- Added `getApplicationsWithTaskDetails()` storage method with JOIN query
+- Added `deleteApplication()` storage method with security checks
+
+**Previous Changes (October 21, 2025)**
 
 **Schema Layer Expansion**
 - Added TypeScript schema definitions for 14 additional database tables in `shared/schema.ts`
