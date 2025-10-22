@@ -9,6 +9,8 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
 import { 
   User, 
   MapPin, 
@@ -73,6 +75,14 @@ interface SavedQuestion {
   authorUsername: string;
 }
 
+interface FollowingUser {
+  id: string;
+  username: string;
+  avatar: string | null;
+  bio: string | null;
+  role: string;
+}
+
 export default function Profile() {
   const [, params] = useRoute("/users/:id");
   const userId = params?.id;
@@ -109,6 +119,32 @@ export default function Profile() {
   const { data: savedQuestions = [] } = useQuery<SavedQuestion[]>({
     queryKey: ["/api/saved-questions"],
     enabled: !!currentUser && currentUser.id === userId,
+  });
+  
+  const { data: following = [] } = useQuery<FollowingUser[]>({
+    queryKey: ["/api/following"],
+    enabled: !!currentUser && currentUser.id === userId,
+  });
+  
+  const togglePrivacyMutation = useMutation({
+    mutationFn: async (isPublic: boolean) => {
+      return await apiRequest("PATCH", "/api/user/privacy", { isPublic });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/user"] });
+      queryClient.invalidateQueries({ queryKey: [`/api/users/${userId}`] });
+      toast({
+        title: "Success",
+        description: "Privacy settings updated successfully",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to update privacy settings",
+        variant: "destructive",
+      });
+    },
   });
 
   const updateProfileMutation = useMutation({
@@ -364,9 +400,10 @@ export default function Profile() {
 
         {isOwnProfile && (
           <Tabs defaultValue="stats" className="w-full">
-            <TabsList className="grid w-full grid-cols-4">
+            <TabsList className="grid w-full grid-cols-5">
               <TabsTrigger value="stats" data-testid="tab-stats">Statistics</TabsTrigger>
               <TabsTrigger value="saved" data-testid="tab-saved">Saved</TabsTrigger>
+              <TabsTrigger value="following" data-testid="tab-following">Following</TabsTrigger>
               <TabsTrigger value="messages" data-testid="tab-messages">Messages</TabsTrigger>
               <TabsTrigger value="notifications" data-testid="tab-notifications">Notifications</TabsTrigger>
             </TabsList>
@@ -438,6 +475,32 @@ export default function Profile() {
                   </div>
                 </div>
               )}
+              
+              {user.role === "performer" && (
+                <Card className="mt-6">
+                  <CardHeader>
+                    <CardTitle>Privacy Settings</CardTitle>
+                    <CardDescription>Control who can view your profile</CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <div className="space-y-0.5">
+                        <Label htmlFor="profile-public">Public Profile</Label>
+                        <p className="text-sm text-muted-foreground">
+                          Allow others to view your profile and completed tasks
+                        </p>
+                      </div>
+                      <Switch
+                        id="profile-public"
+                        checked={user.isProfilePublic === 1}
+                        onCheckedChange={(checked) => togglePrivacyMutation.mutate(checked)}
+                        disabled={togglePrivacyMutation.isPending}
+                        data-testid="switch-profile-public"
+                      />
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
             </TabsContent>
 
             <TabsContent value="saved" className="mt-4">
@@ -494,6 +557,61 @@ export default function Profile() {
                                 ))}
                               </div>
                             </CardContent>
+                          </Card>
+                        </a>
+                      ))}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </TabsContent>
+            
+            <TabsContent value="following" className="mt-4">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <User className="w-5 h-5" />
+                    Following ({following.length})
+                  </CardTitle>
+                  <CardDescription>Users you're following</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {following.length === 0 ? (
+                    <p className="text-muted-foreground text-center py-8">
+                      You're not following anyone yet. Visit user profiles to follow them!
+                    </p>
+                  ) : (
+                    <div className="grid gap-3">
+                      {following.map((user) => (
+                        <a
+                          key={user.id}
+                          href={`/users/${user.id}`}
+                          className="block"
+                          data-testid={`following-user-${user.id}`}
+                        >
+                          <Card className="hover-elevate">
+                            <CardHeader className="pb-3">
+                              <div className="flex items-center gap-4">
+                                <Avatar>
+                                  <AvatarFallback>
+                                    {user.username.charAt(0).toUpperCase()}
+                                  </AvatarFallback>
+                                </Avatar>
+                                <div className="flex-1">
+                                  <CardTitle className="text-base">{user.username}</CardTitle>
+                                  <CardDescription>
+                                    <Badge variant="outline" className="text-xs mt-1">
+                                      {user.role === "provider" ? "Provider" : "Performer"}
+                                    </Badge>
+                                  </CardDescription>
+                                  {user.bio && (
+                                    <p className="text-sm text-muted-foreground mt-2 line-clamp-2">
+                                      {user.bio}
+                                    </p>
+                                  )}
+                                </div>
+                              </div>
+                            </CardHeader>
                           </Card>
                         </a>
                       ))}

@@ -1136,6 +1136,148 @@ export async function registerRoutes(app: Express): Promise<Server> {
       next(error);
     }
   });
+  
+  // Follow operations
+  // Follow a user
+  app.post("/api/users/:id/follow", requireAuth, async (req, res, next) => {
+    try {
+      const followingId = req.params.id;
+      const followerId = req.user!.id;
+      
+      if (followingId === followerId) {
+        return res.status(400).json({ error: "You cannot follow yourself" });
+      }
+      
+      await storage.followUser(followerId, followingId);
+      res.json({ message: "Successfully followed user" });
+    } catch (error) {
+      next(error);
+    }
+  });
+  
+  // Unfollow a user
+  app.delete("/api/users/:id/follow", requireAuth, async (req, res, next) => {
+    try {
+      const followingId = req.params.id;
+      const followerId = req.user!.id;
+      
+      await storage.unfollowUser(followerId, followingId);
+      res.json({ message: "Successfully unfollowed user" });
+    } catch (error) {
+      next(error);
+    }
+  });
+  
+  // Get following list
+  app.get("/api/following", requireAuth, async (req, res, next) => {
+    try {
+      const following = await storage.getFollowing(req.user!.id);
+      res.json(following);
+    } catch (error) {
+      next(error);
+    }
+  });
+  
+  // Check if following a user
+  app.get("/api/users/:id/is-following", requireAuth, async (req, res, next) => {
+    try {
+      const isFollowing = await storage.isFollowing(req.user!.id, req.params.id);
+      res.json({ isFollowing });
+    } catch (error) {
+      next(error);
+    }
+  });
+  
+  // Get user stats (followers and following count)
+  app.get("/api/users/:id/stats", async (req, res, next) => {
+    try {
+      const followersCount = await storage.getFollowersCount(req.params.id);
+      const followingCount = await storage.getFollowingCount(req.params.id);
+      res.json({ followersCount, followingCount });
+    } catch (error) {
+      next(error);
+    }
+  });
+  
+  // Profile privacy operations
+  // Update profile privacy
+  app.patch("/api/user/privacy", requireAuth, async (req, res, next) => {
+    try {
+      const { isPublic } = req.body;
+      if (typeof isPublic !== 'boolean') {
+        return res.status(400).json({ error: "isPublic must be a boolean" });
+      }
+      
+      await storage.updateProfilePrivacy(req.user!.id, isPublic);
+      res.json({ message: "Privacy settings updated successfully" });
+    } catch (error) {
+      next(error);
+    }
+  });
+  
+  // User rating operations
+  // Rate a user
+  app.post("/api/users/:id/rate", requireAuth, async (req, res, next) => {
+    try {
+      const { rating, taskId, comment } = req.body;
+      
+      if (!rating || rating < 1 || rating > 5) {
+        return res.status(400).json({ error: "Rating must be between 1 and 5" });
+      }
+      
+      if (!taskId) {
+        return res.status(400).json({ error: "Task ID is required" });
+      }
+      
+      await storage.rateUser(req.params.id, req.user!.id, taskId, rating, comment);
+      res.json({ message: "Rating submitted successfully" });
+    } catch (error) {
+      next(error);
+    }
+  });
+  
+  // Get user rating details
+  app.get("/api/users/:id/rating", async (req, res, next) => {
+    try {
+      const averageRating = await storage.getUserAverageRating(req.params.id);
+      const ratingCount = await storage.getUserRatingCount(req.params.id);
+      res.json({ averageRating, ratingCount });
+    } catch (error) {
+      next(error);
+    }
+  });
+  
+  // Get user's tasks (for display on profile)
+  app.get("/api/users/:id/tasks", async (req, res, next) => {
+    try {
+      const user = await storage.getUser(req.params.id);
+      if (!user) {
+        return res.status(404).json({ error: "User not found" });
+      }
+      
+      // Check privacy settings
+      if (user.isProfilePublic === 0 && (!req.user || req.user.id !== user.id)) {
+        return res.status(403).json({ error: "This profile is private" });
+      }
+      
+      if (user.role === "performer") {
+        // Get tasks matched to this performer
+        const tasks = await storage.getTasksByPerformer(req.params.id);
+        res.json(tasks);
+      } else {
+        // Get all projects by this provider, then get all tasks from those projects
+        const projects = await storage.getProjectsByProvider(req.params.id);
+        const allTasks = [];
+        for (const project of projects) {
+          const tasks = await storage.getTasksByProject(project.id);
+          allTasks.push(...tasks);
+        }
+        res.json(allTasks);
+      }
+    } catch (error) {
+      next(error);
+    }
+  });
 
   const httpServer = createServer(app);
 

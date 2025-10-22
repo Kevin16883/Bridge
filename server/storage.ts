@@ -1,5 +1,5 @@
 import { 
-  users, projects, tasks, taskSubmissions, badges, userBadges, taskApplications, questions, notifications, questionVotes, savedQuestions, comments, commentVotes,
+  users, projects, tasks, taskSubmissions, badges, userBadges, taskApplications, questions, notifications, questionVotes, savedQuestions, comments, commentVotes, follows, userRatings,
   type User, type InsertUser,
   type Project, type InsertProject,
   type Task, type InsertTask,
@@ -9,7 +9,9 @@ import {
   type TaskApplication, type InsertTaskApplication,
   type Question, type InsertQuestion,
   type Notification, type InsertNotification,
-  type Comment, type InsertComment
+  type Comment, type InsertComment,
+  type Follow, type InsertFollow,
+  type UserRating, type InsertUserRating
 } from "@shared/schema";
 import { db, pool } from "./db";
 import { eq, and, desc, isNull } from "drizzle-orm";
@@ -96,6 +98,22 @@ export interface IStorage {
   createNotification(notification: InsertNotification): Promise<Notification>;
   getNotificationsByUser(userId: string): Promise<Notification[]>;
   markNotificationAsRead(id: string): Promise<void>;
+  
+  // Follow operations
+  followUser(followerId: string, followingId: string): Promise<void>;
+  unfollowUser(followerId: string, followingId: string): Promise<void>;
+  getFollowing(userId: string): Promise<Array<{ id: string, username: string, avatar: string | null, bio: string | null, role: string }>>;
+  isFollowing(followerId: string, followingId: string): Promise<boolean>;
+  getFollowersCount(userId: string): Promise<number>;
+  getFollowingCount(userId: string): Promise<number>;
+  
+  // Profile privacy operations
+  updateProfilePrivacy(userId: string, isPublic: boolean): Promise<void>;
+  
+  // User rating operations
+  rateUser(ratedUserId: string, raterUserId: string, taskId: string, rating: number, comment?: string): Promise<void>;
+  getUserAverageRating(userId: string): Promise<number>;
+  getUserRatingCount(userId: string): Promise<number>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -518,6 +536,93 @@ export class DatabaseStorage implements IStorage {
   
   async markNotificationAsRead(id: string): Promise<void> {
     await db.update(notifications).set({ isRead: 1 }).where(eq(notifications.id, id));
+  }
+  
+  // Follow operations
+  async followUser(followerId: string, followingId: string): Promise<void> {
+    try {
+      await db.insert(follows).values({ followerId, followingId });
+    } catch (error) {
+      // Ignore duplicate follow errors
+    }
+  }
+  
+  async unfollowUser(followerId: string, followingId: string): Promise<void> {
+    await db.delete(follows)
+      .where(and(eq(follows.followerId, followerId), eq(follows.followingId, followingId)));
+  }
+  
+  async getFollowing(userId: string): Promise<Array<{ id: string, username: string, avatar: string | null, bio: string | null, role: string }>> {
+    const results = await db
+      .select({
+        user: users,
+      })
+      .from(follows)
+      .leftJoin(users, eq(follows.followingId, users.id))
+      .where(eq(follows.followerId, userId))
+      .orderBy(desc(follows.createdAt));
+    
+    return results.map(r => ({
+      id: r.user!.id,
+      username: r.user!.username,
+      avatar: r.user!.avatar,
+      bio: r.user!.bio,
+      role: r.user!.role,
+    }));
+  }
+  
+  async isFollowing(followerId: string, followingId: string): Promise<boolean> {
+    const [follow] = await db.select().from(follows)
+      .where(and(eq(follows.followerId, followerId), eq(follows.followingId, followingId)));
+    return !!follow;
+  }
+  
+  async getFollowersCount(userId: string): Promise<number> {
+    const followers = await db.select().from(follows)
+      .where(eq(follows.followingId, userId));
+    return followers.length;
+  }
+  
+  async getFollowingCount(userId: string): Promise<number> {
+    const following = await db.select().from(follows)
+      .where(eq(follows.followerId, userId));
+    return following.length;
+  }
+  
+  // Profile privacy operations
+  async updateProfilePrivacy(userId: string, isPublic: boolean): Promise<void> {
+    await db.update(users).set({ isProfilePublic: isPublic ? 1 : 0 }).where(eq(users.id, userId));
+  }
+  
+  // User rating operations
+  async rateUser(ratedUserId: string, raterUserId: string, taskId: string, rating: number, comment?: string): Promise<void> {
+    await db.insert(userRatings).values({
+      ratedUserId,
+      raterUserId,
+      taskId,
+      rating,
+      comment: comment || null,
+    });
+    
+    // Update user's average rating
+    const avgRating = await this.getUserAverageRating(ratedUserId);
+    await db.update(users).set({ rating: Math.round(avgRating) }).where(eq(users.id, ratedUserId));
+  }
+  
+  async getUserAverageRating(userId: string): Promise<number> {
+    const ratings = await db.select().from(userRatings)
+      .where(eq(userRatings.ratedUserId, userId));
+    
+    if (ratings.length === 0) return 0;
+    
+    const sum = ratings.reduce((acc, r) => acc + r.rating, 0);
+    return sum / ratings.length;
+  }
+  
+  async getUserRatingCount(userId: string): Promise<number> {
+    const ratings = await db.select().from(userRatings)
+      .where(eq(userRatings.ratedUserId, userId));
+    return ratings.length;
   }
 }
 
