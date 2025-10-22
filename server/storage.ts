@@ -63,6 +63,7 @@ export interface IStorage {
   getApplicationsByTask(taskId: string): Promise<TaskApplication[]>;
   getApplicationsByPerformer(performerId: string): Promise<TaskApplication[]>;
   getApplicationsWithTaskDetails(performerId: string): Promise<Array<TaskApplication & { task: Task }>>;
+  getApplicationsByProvider(providerId: string): Promise<Array<TaskApplication & { task: Task, performer: { id: string, username: string, rating: number } }>>;
   updateApplicationStatus(id: string, status: "pending" | "accepted" | "rejected"): Promise<void>;
   deleteApplication(id: string): Promise<void>;
   
@@ -297,6 +298,27 @@ export class DatabaseStorage implements IStorage {
     return results.map(r => ({
       ...r.task_applications,
       task: r.tasks!
+    }));
+  }
+
+  async getApplicationsByProvider(providerId: string): Promise<Array<TaskApplication & { task: Task, performer: { id: string, username: string, rating: number } }>> {
+    const results = await db
+      .select()
+      .from(taskApplications)
+      .leftJoin(tasks, eq(taskApplications.taskId, tasks.id))
+      .leftJoin(projects, eq(tasks.projectId, projects.id))
+      .leftJoin(users, eq(taskApplications.performerId, users.id))
+      .where(eq(projects.providerId, providerId))
+      .orderBy(desc(taskApplications.appliedAt));
+    
+    return results.map(r => ({
+      ...r.task_applications,
+      task: r.tasks!,
+      performer: {
+        id: r.users!.id,
+        username: r.users!.username,
+        rating: r.users!.rating
+      }
     }));
   }
 

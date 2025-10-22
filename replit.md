@@ -10,6 +10,35 @@ The system serves two primary user personas:
 
 ## Recent Changes (October 22, 2025)
 
+**Session 4 - Q&A System Completion and Application Management**
+- **Q&A Voting & Bookmarking**:
+  - Implemented question voting (upvote/downvote with toggle) via `/api/questions/:id/vote`
+  - Implemented question save/unsave (bookmarking) via `/api/questions/:id/save` and `DELETE /api/questions/:id/save`
+  - Added `GET /api/saved-questions` to retrieve user's bookmarked questions
+  - Integrated voting UI in question-detail page with real-time vote counts
+  - Added "Saved" tab in Profile page displaying bookmarked questions with author info and empty state
+- **Comment System**:
+  - Implemented comment creation via `/api/questions/:id/comments`
+  - Implemented comment voting via `/api/comments/:id/vote`
+  - Added comment listing with author information in question-detail page
+  - Comments display with upvote/downvote buttons and vote counts
+- **Provider Application Management** (CRITICAL FIX):
+  - Added `getApplicationsByProvider()` storage method - fetches all applications for provider's tasks with JOIN queries
+  - Added `GET /api/provider/applications` - provider can view all task applications
+  - Added `PATCH /api/applications/:id` - provider can accept/reject applications
+  - On accept: automatically matches task to performer and creates notification
+  - On reject: creates notification to inform performer
+  - Provider Dashboard now has "Task Applications" tab with:
+    - Pending Applications section showing performer details, ratings, task info
+    - Accept/Reject buttons for each pending application
+    - Past Applications section showing historical accepted/rejected applications
+    - Empty state when no applications exist
+- **Schema Updates**:
+  - Added `questionVotes` table with integer vote (-1/1)
+  - Added `savedQuestions` junction table for bookmarking
+  - Fixed exports for new tables in shared/schema.ts
+- **Architect Review**: Q&A features passed review with no blocking defects
+
 **Session 3 - User Profile System and Q&A Enhancements**
 - **User Profile System**:
   - Extended users table with profile fields: avatar, bio, company, location, website, skills, rating

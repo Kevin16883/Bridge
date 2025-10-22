@@ -495,6 +495,67 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get all applications for provider's tasks (provider only)
+  app.get("/api/provider/applications", requireProvider, async (req, res, next) => {
+    try {
+      const applications = await storage.getApplicationsByProvider(req.user!.id);
+      res.json(applications);
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  // Approve or reject an application (provider only)
+  app.patch("/api/applications/:id", requireProvider, async (req, res, next) => {
+    try {
+      const { status } = req.body;
+      
+      if (!["accepted", "rejected"].includes(status)) {
+        return res.status(400).json({ error: "Status must be 'accepted' or 'rejected'" });
+      }
+      
+      // Verify the application belongs to provider's task
+      const applications = await storage.getApplicationsByProvider(req.user!.id);
+      const application = applications.find(app => app.id === req.params.id);
+      
+      if (!application) {
+        return res.status(404).json({ error: "Application not found or does not belong to your tasks" });
+      }
+      
+      // Only allow updating pending applications
+      if (application.status !== "pending") {
+        return res.status(400).json({ error: "Can only update pending applications" });
+      }
+      
+      await storage.updateApplicationStatus(req.params.id, status);
+      
+      // If accepted, match the task to the performer
+      if (status === "accepted") {
+        await storage.matchTaskToPerformer(application.taskId, application.performerId);
+        
+        // Create notification for the performer
+        await storage.createNotification({
+          userId: application.performerId,
+          type: "application_accepted",
+          content: `Your application for task "${application.task.title}" has been accepted!`,
+          relatedId: application.taskId,
+        });
+      } else {
+        // Create notification for rejection
+        await storage.createNotification({
+          userId: application.performerId,
+          type: "application_rejected",
+          content: `Your application for task "${application.task.title}" was not selected.`,
+          relatedId: application.taskId,
+        });
+      }
+      
+      res.json({ success: true, status });
+    } catch (error) {
+      next(error);
+    }
+  });
+
   // Cancel/delete an application (performer only)
   app.delete("/api/applications/:id", requirePerformer, async (req, res, next) => {
     try {

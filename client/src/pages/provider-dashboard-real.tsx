@@ -1,13 +1,16 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { Link } from "wouter";
 import { useState, useMemo } from "react";
-import { Plus, Briefcase, Clock, CheckCircle2, XCircle, BarChart3, UserCheck, Search } from "lucide-react";
+import { Plus, Briefcase, Clock, CheckCircle2, XCircle, BarChart3, UserCheck, Search, User, ThumbsUp, ThumbsDown, Star } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Header } from "@/components/header";
+import { useToast } from "@/hooks/use-toast";
+import { apiRequest, queryClient } from "@/lib/queryClient";
 
 interface Project {
   id: string;
@@ -17,9 +20,31 @@ interface Project {
   createdAt: string;
 }
 
+interface TaskApplication {
+  id: string;
+  taskId: string;
+  performerId: string;
+  status: "pending" | "accepted" | "rejected";
+  appliedAt: string;
+  task: {
+    id: string;
+    title: string;
+    description: string;
+    skills: string[];
+    budget: string;
+    difficulty: string;
+  };
+  performer: {
+    id: string;
+    username: string;
+    rating: number;
+  };
+}
+
 export default function ProviderDashboard() {
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
+  const { toast } = useToast();
 
   const { data: projects, isLoading } = useQuery<Project[]>({
     queryKey: ["/api/projects"],
@@ -28,6 +53,34 @@ export default function ProviderDashboard() {
   const { data: pendingApplicationsData } = useQuery<{ count: number }>({
     queryKey: ["/api/provider/pending-applications-count"],
   });
+
+  const { data: applications = [] } = useQuery<TaskApplication[]>({
+    queryKey: ["/api/provider/applications"],
+  });
+
+  const handleApplicationMutation = useMutation({
+    mutationFn: async ({ id, status }: { id: string; status: "accepted" | "rejected" }) => {
+      return await apiRequest("PATCH", `/api/applications/${id}`, { status });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/provider/applications"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/provider/pending-applications-count"] });
+      toast({
+        title: "Success",
+        description: "Application updated successfully",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to update application",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const pendingApplications = applications.filter(app => app.status === "pending");
+  const processedApplications = applications.filter(app => app.status !== "pending");
 
   // Filter and search projects
   const filteredProjects = useMemo(() => {
@@ -63,7 +116,7 @@ export default function ProviderDashboard() {
 
   const activeProjects = filteredProjects?.filter(p => p.status === "active").length || 0;
   const completedProjects = filteredProjects?.filter(p => p.status === "completed").length || 0;
-  const pendingApplications = pendingApplicationsData?.count || 0;
+  const pendingApplicationsCount = pendingApplicationsData?.count || 0;
 
   return (
     <div className="min-h-screen bg-background">
@@ -92,14 +145,14 @@ export default function ProviderDashboard() {
         ) : (
           <>
             <div className="grid lg:grid-cols-4 gap-6 mb-8">
-              <Card data-testid="stat-pending-applications" className={pendingApplications > 0 ? "border-primary/50 bg-primary/5" : ""}>
+              <Card data-testid="stat-pending-applications" className={pendingApplicationsCount > 0 ? "border-primary/50 bg-primary/5" : ""}>
                 <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
                   <CardTitle className="text-sm font-medium">Pending Applications</CardTitle>
-                  <UserCheck className={`h-4 w-4 ${pendingApplications > 0 ? 'text-primary' : 'text-muted-foreground'}`} />
+                  <UserCheck className={`h-4 w-4 ${pendingApplicationsCount > 0 ? 'text-primary' : 'text-muted-foreground'}`} />
                 </CardHeader>
                 <CardContent>
-                  <div className={`text-2xl font-bold ${pendingApplications > 0 ? 'text-primary' : ''}`}>
-                    {pendingApplications}
+                  <div className={`text-2xl font-bold ${pendingApplicationsCount > 0 ? 'text-primary' : ''}`}>
+                    {pendingApplicationsCount}
                   </div>
                   <p className="text-xs text-muted-foreground">Awaiting review</p>
                 </CardContent>
@@ -141,25 +194,35 @@ export default function ProviderDashboard() {
               </Card>
             </div>
 
-            {!projects || projects.length === 0 ? (
-              <Card>
-                <CardContent className="pt-6 text-center">
-                  <Briefcase className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
-                  <h3 className="text-lg font-semibold mb-2">No projects yet</h3>
-                  <p className="text-muted-foreground mb-4">
-                    Create your first demand to get started with AI-powered task matching
-                  </p>
-                  <Link href="/create-demand">
-                    <Button data-testid="button-create-first-demand">
-                      <Plus className="w-4 h-4 mr-2" />
-                      Create Your First Demand
-                    </Button>
-                  </Link>
-                </CardContent>
-              </Card>
-            ) : (
-              <div>
-                <h2 className="text-2xl font-bold mb-4">My Projects</h2>
+            <Tabs defaultValue="projects" className="w-full">
+              <TabsList className="grid w-full grid-cols-2 mb-6">
+                <TabsTrigger value="projects" data-testid="tab-projects">
+                  My Projects ({projects?.length || 0})
+                </TabsTrigger>
+                <TabsTrigger value="applications" data-testid="tab-applications">
+                  Task Applications ({pendingApplications.length} pending)
+                </TabsTrigger>
+              </TabsList>
+
+              <TabsContent value="projects">
+                {!projects || projects.length === 0 ? (
+                  <Card>
+                    <CardContent className="pt-6 text-center">
+                      <Briefcase className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
+                      <h3 className="text-lg font-semibold mb-2">No projects yet</h3>
+                      <p className="text-muted-foreground mb-4">
+                        Create your first demand to get started with AI-powered task matching
+                      </p>
+                      <Link href="/create-demand">
+                        <Button data-testid="button-create-first-demand">
+                          <Plus className="w-4 h-4 mr-2" />
+                          Create Your First Demand
+                        </Button>
+                      </Link>
+                    </CardContent>
+                  </Card>
+                ) : (
+                  <div>
                 
                 {/* Search and Filters */}
                 <div className="mb-6 space-y-4">
@@ -265,6 +328,143 @@ export default function ProviderDashboard() {
                 )}
               </div>
             )}
+          </TabsContent>
+
+          <TabsContent value="applications">
+            {pendingApplications.length === 0 && processedApplications.length === 0 ? (
+              <Card>
+                <CardContent className="pt-6 text-center">
+                  <UserCheck className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
+                  <h3 className="text-lg font-semibold mb-2">No applications yet</h3>
+                  <p className="text-muted-foreground">
+                    Applications from performers will appear here once they apply for your tasks
+                  </p>
+                </CardContent>
+              </Card>
+            ) : (
+              <div className="space-y-6">
+                {pendingApplications.length > 0 && (
+                  <div>
+                    <h3 className="text-xl font-semibold mb-4">Pending Applications ({pendingApplications.length})</h3>
+                    <div className="grid gap-4">
+                      {pendingApplications.map((application) => (
+                        <Card key={application.id} className="hover-elevate" data-testid={`card-application-${application.id}`}>
+                          <CardHeader>
+                            <div className="flex items-start justify-between gap-4">
+                              <div className="flex-1">
+                                <div className="flex items-center gap-2 mb-2">
+                                  <User className="w-4 h-4" />
+                                  <Link href={`/users/${application.performer.id}`}>
+                                    <span className="font-semibold hover:underline" data-testid={`performer-${application.performer.id}`}>
+                                      {application.performer.username}
+                                    </span>
+                                  </Link>
+                                  <div className="flex items-center gap-1">
+                                    <Star className="w-3 h-3 fill-yellow-400 text-yellow-400" />
+                                    <span className="text-sm text-muted-foreground">{application.performer.rating.toFixed(1)}</span>
+                                  </div>
+                                </div>
+                                <CardTitle className="text-base">Task: {application.task.title}</CardTitle>
+                                <CardDescription className="mt-1">
+                                  Applied {new Date(application.appliedAt).toLocaleDateString()}
+                                </CardDescription>
+                              </div>
+                              <Badge variant="outline">{application.task.difficulty}</Badge>
+                            </div>
+                          </CardHeader>
+                          <CardContent>
+                            <div className="space-y-3">
+                              <p className="text-sm text-muted-foreground line-clamp-2">
+                                {application.task.description}
+                              </p>
+                              <div className="flex flex-wrap gap-2">
+                                {application.task.skills.map(skill => (
+                                  <Badge key={skill} variant="secondary" className="text-xs">
+                                    {skill}
+                                  </Badge>
+                                ))}
+                              </div>
+                              <div className="flex items-center justify-between pt-2">
+                                <span className="text-sm font-medium">Budget: {application.task.budget}</span>
+                                <div className="flex gap-2">
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => handleApplicationMutation.mutate({ id: application.id, status: "rejected" })}
+                                    disabled={handleApplicationMutation.isPending}
+                                    data-testid={`button-reject-${application.id}`}
+                                  >
+                                    <ThumbsDown className="w-4 h-4 mr-1" />
+                                    Reject
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    onClick={() => handleApplicationMutation.mutate({ id: application.id, status: "accepted" })}
+                                    disabled={handleApplicationMutation.isPending}
+                                    data-testid={`button-accept-${application.id}`}
+                                  >
+                                    <ThumbsUp className="w-4 h-4 mr-1" />
+                                    Accept
+                                  </Button>
+                                </div>
+                              </div>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {processedApplications.length > 0 && (
+                  <div>
+                    <h3 className="text-xl font-semibold mb-4">Past Applications ({processedApplications.length})</h3>
+                    <div className="grid gap-4">
+                      {processedApplications.map((application) => (
+                        <Card key={application.id} data-testid={`card-processed-${application.id}`}>
+                          <CardHeader>
+                            <div className="flex items-start justify-between gap-4">
+                              <div className="flex-1">
+                                <div className="flex items-center gap-2 mb-2">
+                                  <User className="w-4 h-4" />
+                                  <Link href={`/users/${application.performer.id}`}>
+                                    <span className="font-semibold hover:underline">
+                                      {application.performer.username}
+                                    </span>
+                                  </Link>
+                                  <div className="flex items-center gap-1">
+                                    <Star className="w-3 h-3 fill-yellow-400 text-yellow-400" />
+                                    <span className="text-sm text-muted-foreground">{application.performer.rating.toFixed(1)}</span>
+                                  </div>
+                                </div>
+                                <CardTitle className="text-base">Task: {application.task.title}</CardTitle>
+                                <CardDescription className="mt-1">
+                                  Applied {new Date(application.appliedAt).toLocaleDateString()}
+                                </CardDescription>
+                              </div>
+                              <Badge variant={application.status === "accepted" ? "default" : "destructive"}>
+                                {application.status}
+                              </Badge>
+                            </div>
+                          </CardHeader>
+                          <CardContent>
+                            <div className="flex flex-wrap gap-2">
+                              {application.task.skills.map(skill => (
+                                <Badge key={skill} variant="secondary" className="text-xs">
+                                  {skill}
+                                </Badge>
+                              ))}
+                            </div>
+                          </CardContent>
+                        </Card>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+          </TabsContent>
+        </Tabs>
           </>
         )}
       </div>
