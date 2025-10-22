@@ -1,15 +1,16 @@
 import { 
-  users, projects, tasks, taskSubmissions, badges, userBadges, taskApplications,
+  users, projects, tasks, taskSubmissions, badges, userBadges, taskApplications, questions,
   type User, type InsertUser,
   type Project, type InsertProject,
   type Task, type InsertTask,
   type TaskSubmission, type InsertTaskSubmission,
   type Badge, type InsertBadge,
   type UserBadge, type InsertUserBadge,
-  type TaskApplication, type InsertTaskApplication
+  type TaskApplication, type InsertTaskApplication,
+  type Question, type InsertQuestion
 } from "@shared/schema";
 import { db, pool } from "./db";
-import { eq, and, desc } from "drizzle-orm";
+import { eq, and, desc, isNull } from "drizzle-orm";
 import session from "express-session";
 import connectPg from "connect-pg-simple";
 
@@ -61,6 +62,12 @@ export interface IStorage {
   getApplicationsWithTaskDetails(performerId: string): Promise<Array<TaskApplication & { task: Task }>>;
   updateApplicationStatus(id: string, status: "pending" | "accepted" | "rejected"): Promise<void>;
   deleteApplication(id: string): Promise<void>;
+  
+  // Question operations (Q&A Community)
+  createQuestion(question: InsertQuestion): Promise<Question>;
+  getQuestion(id: string): Promise<Question | undefined>;
+  getAllQuestions(): Promise<Question[]>;
+  incrementQuestionViews(id: string): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -132,7 +139,7 @@ export class DatabaseStorage implements IStorage {
     return await db.select().from(tasks)
       .where(and(
         eq(tasks.status, "pending"),
-        eq(tasks.matchedPerformerId, null)
+        isNull(tasks.matchedPerformerId)
       ));
   }
 
@@ -250,6 +257,30 @@ export class DatabaseStorage implements IStorage {
 
   async deleteApplication(id: string): Promise<void> {
     await db.delete(taskApplications).where(eq(taskApplications.id, id));
+  }
+
+  // Question operations (Q&A Community)
+  async createQuestion(insertQuestion: InsertQuestion): Promise<Question> {
+    const [question] = await db.insert(questions).values(insertQuestion).returning();
+    return question;
+  }
+
+  async getQuestion(id: string): Promise<Question | undefined> {
+    const [question] = await db.select().from(questions).where(eq(questions.id, id));
+    return question || undefined;
+  }
+
+  async getAllQuestions(): Promise<Question[]> {
+    return await db.select().from(questions).orderBy(desc(questions.createdAt));
+  }
+
+  async incrementQuestionViews(id: string): Promise<void> {
+    const [question] = await db.select().from(questions).where(eq(questions.id, id));
+    if (question) {
+      await db.update(questions)
+        .set({ viewCount: question.viewCount + 1 })
+        .where(eq(questions.id, id));
+    }
   }
 }
 

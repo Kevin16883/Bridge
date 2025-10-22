@@ -53,10 +53,7 @@ export function Header() {
                     Dashboard
                   </Link>
                   <Link href="/tasks" className="text-sm text-muted-foreground hover:text-foreground transition-colors" data-testid="link-tasks">
-                    Browse Tasks
-                  </Link>
-                  <Link href="/applications" className="text-sm text-muted-foreground hover:text-foreground transition-colors" data-testid="link-applications">
-                    My Applications
+                    Tasks
                   </Link>
                 </>
               )}

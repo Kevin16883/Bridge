@@ -3,7 +3,7 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { setupAuth } from "./auth";
 import { analyzeAndBreakdownDemand } from "./ai";
-import { insertProjectSchema, insertTaskSchema, insertTaskSubmissionSchema } from "@shared/schema";
+import { insertProjectSchema, insertTaskSchema, insertTaskSubmissionSchema, insertQuestionSchema } from "@shared/schema";
 import { z } from "zod";
 
 function requireAuth(req: any, res: any, next: any) {
@@ -729,6 +729,51 @@ export async function registerRoutes(app: Express): Promise<Server> {
         totalBadges: userBadges.length,
       });
     } catch (error) {
+      next(error);
+    }
+  });
+
+  // Q&A Community - Get all questions
+  app.get("/api/questions", async (req, res, next) => {
+    try {
+      const questions = await storage.getAllQuestions();
+      res.json(questions);
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  // Q&A Community - Get a single question
+  app.get("/api/questions/:id", async (req, res, next) => {
+    try {
+      const question = await storage.getQuestion(req.params.id);
+      if (!question) {
+        return res.status(404).json({ error: "Question not found" });
+      }
+      
+      // Increment view count
+      await storage.incrementQuestionViews(req.params.id);
+      
+      res.json(question);
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  // Q&A Community - Create a question
+  app.post("/api/questions", requireAuth, async (req, res, next) => {
+    try {
+      const questionData = insertQuestionSchema.parse({
+        ...req.body,
+        userId: req.user!.id,
+      });
+      
+      const question = await storage.createQuestion(questionData);
+      res.status(201).json(question);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ error: error.errors[0].message });
+      }
       next(error);
     }
   });
