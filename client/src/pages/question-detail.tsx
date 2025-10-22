@@ -30,6 +30,7 @@ interface Comment {
   content: string;
   createdAt: string;
   authorUsername: string;
+  voteCount?: number;
 }
 
 export default function QuestionDetail() {
@@ -102,6 +103,22 @@ export default function QuestionDetail() {
       });
     },
   });
+  
+  const voteCommentMutation = useMutation({
+    mutationFn: async ({ commentId, vote }: { commentId: string; vote: number }) => {
+      return await apiRequest("POST", `/api/comments/${commentId}/vote`, { vote });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [`/api/questions/${questionId}/comments`] });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to vote on comment",
+        variant: "destructive",
+      });
+    },
+  });
 
   if (isLoading) {
     return (
@@ -150,7 +167,9 @@ export default function QuestionDetail() {
               <div className="flex-1">
                 <CardTitle className="text-2xl mb-2">{question.title}</CardTitle>
                 <CardDescription>
-                  Asked by {question.authorUsername} • {new Date(question.createdAt).toLocaleDateString()}
+                  Asked by <Link href={`/users/${question.userId}`} className="hover:underline text-primary">
+                    {question.authorUsername}
+                  </Link> • {new Date(question.createdAt).toLocaleDateString()}
                 </CardDescription>
               </div>
               <Badge variant="outline">{question.category}</Badge>
@@ -278,6 +297,8 @@ export default function QuestionDetail() {
                         variant="ghost"
                         size="sm"
                         className="h-7 text-xs gap-1"
+                        onClick={() => voteCommentMutation.mutate({ commentId: comment.id, vote: 1 })}
+                        disabled={voteCommentMutation.isPending}
                         data-testid={`button-upvote-comment-${comment.id}`}
                       >
                         <ThumbsUp className="w-3 h-3" />
@@ -287,6 +308,8 @@ export default function QuestionDetail() {
                         variant="ghost"
                         size="sm"
                         className="h-7 text-xs"
+                        onClick={() => voteCommentMutation.mutate({ commentId: comment.id, vote: -1 })}
+                        disabled={voteCommentMutation.isPending}
                         data-testid={`button-downvote-comment-${comment.id}`}
                       >
                         <ThumbsDown className="w-3 h-3" />

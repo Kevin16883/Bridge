@@ -1073,7 +1073,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/questions/:id/comments", async (req, res, next) => {
     try {
       const comments = await storage.getCommentsByQuestion(req.params.id);
-      res.json(comments);
+      
+      // Get vote counts for each comment
+      const commentsWithVotes = await Promise.all(
+        comments.map(async (comment) => {
+          const voteCount = await storage.getCommentVoteCount(comment.id);
+          return { ...comment, voteCount };
+        })
+      );
+      
+      res.json(commentsWithVotes);
     } catch (error) {
       next(error);
     }
@@ -1092,6 +1101,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
         userId: req.user!.id,
         content: content.trim(),
       });
+      
+      // Get the question to find the author
+      const question = await storage.getQuestionWithAuthor(req.params.id);
+      
+      // Notify the question author if the commenter is not the author
+      if (question && question.userId !== req.user!.id) {
+        await storage.createNotification({
+          userId: question.userId,
+          type: "comment",
+          content: `${req.user!.username} commented on your question: "${question.title}"`,
+          relatedId: question.id,
+        });
+      }
       
       res.status(201).json(comment);
     } catch (error) {

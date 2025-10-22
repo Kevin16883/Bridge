@@ -457,7 +457,7 @@ export class DatabaseStorage implements IStorage {
     return comment;
   }
   
-  async getCommentsByQuestion(questionId: string): Promise<Array<Comment & { authorUsername: string }>> {
+  async getCommentsByQuestion(questionId: string): Promise<Array<Comment & { authorUsername: string, voteCount?: number }>> {
     const results = await db
       .select({
         comment: comments,
@@ -471,6 +471,7 @@ export class DatabaseStorage implements IStorage {
     return results.map(r => ({
       ...r.comment,
       authorUsername: r.user?.username || 'Unknown',
+      voteCount: 0,
     }));
   }
   
