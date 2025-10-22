@@ -7,12 +7,13 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Header } from "@/components/header";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
-import { Mail, UserPlus, UserMinus, Star, Trophy, Calendar, MessageSquare, Lock } from "lucide-react";
+import { Mail, UserPlus, UserMinus, Star, Trophy, Calendar, MessageSquare, Lock, StarIcon } from "lucide-react";
 import { Link } from "wouter";
 import type { User, UserBadge, Badge as BadgeType, Task } from "@shared/schema";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { useState } from "react";
 
 interface ProfileData {
@@ -37,6 +38,7 @@ export default function UserProfile() {
   const [selectedRating, setSelectedRating] = useState(0);
   const [ratingComment, setRatingComment] = useState("");
   const [isRatingDialogOpen, setIsRatingDialogOpen] = useState(false);
+  const [hoverRating, setHoverRating] = useState(0);
 
   const { data: userData, isLoading: isUserLoading } = useQuery<User>({
     queryKey: [`/api/users/${userId}`],
@@ -112,14 +114,19 @@ export default function UserProfile() {
   });
   
   const rateMutation = useMutation({
-    mutationFn: async ({ rating, taskId, comment }: { rating: number; taskId: string; comment?: string }) => {
-      return await apiRequest("POST", `/api/users/${userId}/rate`, { rating, taskId, comment });
+    mutationFn: async ({ rating, comment }: { rating: number; comment?: string }) => {
+      return await apiRequest("POST", `/api/users/${userId}/rate`, { 
+        rating, 
+        taskId: "00000000-0000-0000-0000-000000000000",
+        comment 
+      });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [`/api/users/${userId}/rating`] });
       setIsRatingDialogOpen(false);
       setSelectedRating(0);
       setRatingComment("");
+      setHoverRating(0);
       toast({
         title: "Success",
         description: "Rating submitted successfully",
@@ -133,6 +140,18 @@ export default function UserProfile() {
       });
     },
   });
+  
+  const handleRateUser = () => {
+    if (selectedRating === 0) {
+      toast({
+        title: "Error",
+        description: "Please select a rating",
+        variant: "destructive",
+      });
+      return;
+    }
+    rateMutation.mutate({ rating: selectedRating, comment: ratingComment });
+  };
   
   const handleFollow = () => {
     if (isFollowing?.isFollowing) {
@@ -171,7 +190,7 @@ export default function UserProfile() {
   }
   
   // Check if profile is private
-  if (userData.isProfilePublic === 0 && !isOwnProfile) {
+  if (userData && userData.isProfilePublic === 0 && !isOwnProfile) {
     return (
       <div className="min-h-screen bg-background">
         <Header />
@@ -266,7 +285,7 @@ export default function UserProfile() {
                 <CardTitle>Rating</CardTitle>
                 <CardDescription>User rating & reviews</CardDescription>
               </CardHeader>
-              <CardContent className="space-y-2">
+              <CardContent className="space-y-3">
                 <div className="flex items-center justify-between">
                   <span className="text-sm text-muted-foreground">Average Rating</span>
                   <div className="flex items-center gap-1">
@@ -278,6 +297,89 @@ export default function UserProfile() {
                   <span className="text-sm text-muted-foreground">Total Reviews</span>
                   <span className="font-semibold">{ratingData?.ratingCount || 0}</span>
                 </div>
+                
+                {!isOwnProfile && currentUser && (
+                  <Dialog open={isRatingDialogOpen} onOpenChange={setIsRatingDialogOpen}>
+                    <DialogTrigger asChild>
+                      <Button className="w-full mt-2" variant="outline" data-testid="button-rate-user">
+                        <Star className="w-4 h-4 mr-2" />
+                        Rate User
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent>
+                      <DialogHeader>
+                        <DialogTitle>Rate {userData?.username}</DialogTitle>
+                        <DialogDescription>
+                          Share your experience working with this user
+                        </DialogDescription>
+                      </DialogHeader>
+                      
+                      <div className="space-y-4 py-4">
+                        <div className="space-y-2">
+                          <Label>Rating</Label>
+                          <div className="flex gap-2 justify-center py-2">
+                            {[1, 2, 3, 4, 5].map((rating) => (
+                              <button
+                                key={rating}
+                                type="button"
+                                onClick={() => setSelectedRating(rating)}
+                                onMouseEnter={() => setHoverRating(rating)}
+                                onMouseLeave={() => setHoverRating(0)}
+                                className="transition-transform hover:scale-110"
+                                data-testid={`star-${rating}`}
+                              >
+                                <Star
+                                  className={`w-8 h-8 ${
+                                    rating <= (hoverRating || selectedRating)
+                                      ? "fill-yellow-400 text-yellow-400"
+                                      : "text-muted-foreground"
+                                  }`}
+                                />
+                              </button>
+                            ))}
+                          </div>
+                          <p className="text-center text-sm text-muted-foreground">
+                            {selectedRating > 0 ? `${selectedRating} out of 5 stars` : "Select a rating"}
+                          </p>
+                        </div>
+                        
+                        <div className="space-y-2">
+                          <Label htmlFor="rating-comment">Comment (Optional)</Label>
+                          <Textarea
+                            id="rating-comment"
+                            placeholder="Share more details about your experience..."
+                            value={ratingComment}
+                            onChange={(e) => setRatingComment(e.target.value)}
+                            rows={4}
+                            data-testid="textarea-rating-comment"
+                          />
+                        </div>
+                      </div>
+                      
+                      <DialogFooter>
+                        <Button
+                          variant="outline"
+                          onClick={() => {
+                            setIsRatingDialogOpen(false);
+                            setSelectedRating(0);
+                            setRatingComment("");
+                            setHoverRating(0);
+                          }}
+                          data-testid="button-cancel-rating"
+                        >
+                          Cancel
+                        </Button>
+                        <Button
+                          onClick={handleRateUser}
+                          disabled={rateMutation.isPending || selectedRating === 0}
+                          data-testid="button-submit-rating"
+                        >
+                          {rateMutation.isPending ? "Submitting..." : "Submit Rating"}
+                        </Button>
+                      </DialogFooter>
+                    </DialogContent>
+                  </Dialog>
+                )}
               </CardContent>
             </Card>
           </div>
