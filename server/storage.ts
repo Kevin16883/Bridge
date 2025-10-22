@@ -66,7 +66,7 @@ export interface IStorage {
   // Question operations (Q&A Community)
   createQuestion(question: InsertQuestion): Promise<Question>;
   getQuestion(id: string): Promise<Question | undefined>;
-  getAllQuestions(): Promise<Question[]>;
+  getAllQuestions(): Promise<Array<Question & { authorUsername: string, answerCount: number, commentCount: number }>>;
   incrementQuestionViews(id: string): Promise<void>;
 }
 
@@ -270,8 +270,22 @@ export class DatabaseStorage implements IStorage {
     return question || undefined;
   }
 
-  async getAllQuestions(): Promise<Question[]> {
-    return await db.select().from(questions).orderBy(desc(questions.createdAt));
+  async getAllQuestions(): Promise<Array<Question & { authorUsername: string, answerCount: number, commentCount: number }>> {
+    const results = await db
+      .select({
+        question: questions,
+        user: users,
+      })
+      .from(questions)
+      .leftJoin(users, eq(questions.userId, users.id))
+      .orderBy(desc(questions.createdAt));
+    
+    return results.map(r => ({
+      ...r.question,
+      authorUsername: r.user?.username || 'Unknown',
+      answerCount: 0,
+      commentCount: 0,
+    }));
   }
 
   async incrementQuestionViews(id: string): Promise<void> {
