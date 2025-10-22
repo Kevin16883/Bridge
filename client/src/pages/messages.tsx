@@ -36,7 +36,8 @@ export default function Messages() {
   
   // Get user ID from URL query parameter
   useEffect(() => {
-    const params = new URLSearchParams(location.split('?')[1]);
+    const queryString = location.includes('?') ? location.split('?')[1] : '';
+    const params = new URLSearchParams(queryString);
     const userParam = params.get('user');
     if (userParam) {
       setSelectedUserId(userParam);
@@ -123,8 +124,8 @@ export default function Messages() {
       <div className="container mx-auto p-6">
         <h1 className="text-3xl font-bold mb-6">Messages</h1>
 
-        <div className="grid lg:grid-cols-3 gap-6 h-[calc(100vh-200px)]">
-          <Card className="lg:col-span-1">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <Card className="lg:col-span-1 h-[calc(100vh-200px)]">
             <CardHeader>
               <CardTitle>Conversations</CardTitle>
               <CardDescription>Your recent conversations</CardDescription>
@@ -178,7 +179,7 @@ export default function Messages() {
             </CardContent>
           </Card>
 
-          <Card className="lg:col-span-2">
+          <Card className="lg:col-span-2 h-[calc(100vh-200px)]">
             {selectedUserId ? (
               <>
                 <CardHeader className="border-b">
@@ -194,7 +195,7 @@ export default function Messages() {
                     </div>
                   </div>
                 </CardHeader>
-                <CardContent className="p-0 flex flex-col h-[calc(100vh-320px)]">
+                <CardContent className="p-0 flex flex-col h-[calc(100%-80px)]">
                   <ScrollArea className="flex-1 p-4">
                     {isLoading ? (
                       <div className="flex items-center justify-center h-full">
@@ -265,10 +266,11 @@ export default function Messages() {
                 </CardContent>
               </>
             ) : (
-              <CardContent className="flex items-center justify-center h-full">
+              <CardContent className="flex items-center justify-center min-h-[400px]">
                 <div className="text-center text-muted-foreground">
                   <MessageSquare className="w-16 h-16 mx-auto mb-4 opacity-50" />
                   <p className="text-lg">Select a conversation to start messaging</p>
+                  <p className="text-sm mt-2">Or click "Send Message" on a user's profile to start a new conversation</p>
                 </div>
               </CardContent>
             )}
