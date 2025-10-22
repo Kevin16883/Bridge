@@ -12,7 +12,7 @@ import { Send, MessageSquare } from "lucide-react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useLocation } from "wouter";
-import type { Message } from "@shared/schema";
+import type { Message, User } from "@shared/schema";
 
 interface MessageWithUsers extends Message {
   senderUsername: string;
@@ -43,13 +43,23 @@ export default function Messages() {
     }
   }, [location]);
 
-  const { data: conversations } = useQuery<Conversation[]>({
+  const { data: conversations, status: conversationsStatus } = useQuery<Conversation[]>({
     queryKey: ["/api/messages/conversations"],
   });
 
   const { data: messages, isLoading } = useQuery<MessageWithUsers[]>({
     queryKey: ["/api/messages", selectedUserId],
     enabled: !!selectedUserId,
+  });
+  
+  // Fetch selected user info if not in conversations (for new conversations)
+  // Only fetch after conversations have loaded and user is not in the list
+  const { data: selectedUserInfo } = useQuery<User>({
+    queryKey: ["/api/users", selectedUserId],
+    enabled: 
+      !!selectedUserId && 
+      conversationsStatus === 'success' && 
+      !conversations?.find(c => c.userId === selectedUserId),
   });
 
   const sendMessageMutation = useMutation({
@@ -102,6 +112,9 @@ export default function Messages() {
   };
 
   const selectedConversation = conversations?.find(c => c.userId === selectedUserId);
+  
+  // Get display name for selected user
+  const selectedUserDisplayName = selectedConversation?.username || selectedUserInfo?.username || "User";
 
   return (
     <div className="min-h-screen bg-background">
@@ -169,8 +182,17 @@ export default function Messages() {
             {selectedUserId ? (
               <>
                 <CardHeader className="border-b">
-                  <CardTitle>{selectedConversation?.username}</CardTitle>
-                  <CardDescription>Send and receive messages</CardDescription>
+                  <div className="flex items-center gap-3">
+                    <Avatar>
+                      <AvatarFallback>
+                        {selectedUserDisplayName.charAt(0).toUpperCase()}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div>
+                      <CardTitle>{selectedUserDisplayName}</CardTitle>
+                      <CardDescription>Send and receive messages</CardDescription>
+                    </div>
+                  </div>
                 </CardHeader>
                 <CardContent className="p-0 flex flex-col h-[calc(100vh-320px)]">
                   <ScrollArea className="flex-1 p-4">
