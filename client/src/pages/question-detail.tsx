@@ -20,6 +20,7 @@ interface Question {
   viewCount: number;
   createdAt: string;
   authorUsername: string;
+  voteCount?: number;
 }
 
 interface Comment {
@@ -29,9 +30,6 @@ interface Comment {
   content: string;
   createdAt: string;
   authorUsername: string;
-  voteCount?: number;
-  hasUpvoted?: boolean;
-  hasDownvoted?: boolean;
 }
 
 export default function QuestionDetail() {
@@ -76,9 +74,12 @@ export default function QuestionDetail() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [`/api/questions/${questionId}`] });
+    },
+    onError: (error: any) => {
       toast({
-        title: "Success",
-        description: "Vote recorded",
+        title: "Error",
+        description: error.message || "Failed to vote",
+        variant: "destructive",
       });
     },
   });
@@ -91,6 +92,13 @@ export default function QuestionDetail() {
       toast({
         title: "Success",
         description: "Question saved to your collection",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to save question",
+        variant: "destructive",
       });
     },
   });
@@ -172,30 +180,37 @@ export default function QuestionDetail() {
             </div>
             
             <div className="flex items-center gap-2 pt-2">
-              <Button
-                variant="ghost"
-                size="sm"
-                className="h-8 gap-1"
-                onClick={() => voteQuestionMutation.mutate(1)}
-                data-testid="button-upvote-question"
-              >
-                <ThumbsUp className="w-4 h-4" />
-                <span>Upvote</span>
-              </Button>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="h-8 gap-1"
-                onClick={() => voteQuestionMutation.mutate(-1)}
-                data-testid="button-downvote-question"
-              >
-                <ThumbsDown className="w-4 h-4" />
-              </Button>
+              <div className="flex items-center gap-1">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-8 gap-1"
+                  onClick={() => voteQuestionMutation.mutate(1)}
+                  disabled={voteQuestionMutation.isPending}
+                  data-testid="button-upvote-question"
+                >
+                  <ThumbsUp className="w-4 h-4" />
+                </Button>
+                <span className="text-sm font-medium min-w-8 text-center">
+                  {question.voteCount || 0}
+                </span>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-8"
+                  onClick={() => voteQuestionMutation.mutate(-1)}
+                  disabled={voteQuestionMutation.isPending}
+                  data-testid="button-downvote-question"
+                >
+                  <ThumbsDown className="w-4 h-4" />
+                </Button>
+              </div>
               <Button
                 variant="ghost"
                 size="sm"
                 className="h-8 gap-1"
                 onClick={() => saveQuestionMutation.mutate()}
+                disabled={saveQuestionMutation.isPending}
                 data-testid="button-save-question"
               >
                 <Bookmark className="w-4 h-4" />

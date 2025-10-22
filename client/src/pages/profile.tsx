@@ -21,7 +21,10 @@ import {
   Star,
   CheckCircle2,
   Clock,
-  Award
+  Award,
+  Bookmark,
+  Eye,
+  MessageSquare
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
@@ -59,6 +62,17 @@ interface Project {
   createdAt: string;
 }
 
+interface SavedQuestion {
+  id: string;
+  title: string;
+  content: string;
+  tags: string[];
+  category: string;
+  viewCount: number;
+  createdAt: string;
+  authorUsername: string;
+}
+
 export default function Profile() {
   const [, params] = useRoute("/users/:id");
   const userId = params?.id;
@@ -90,6 +104,11 @@ export default function Profile() {
   const { data: performerStats } = useQuery<any>({
     queryKey: ["/api/performer/stats"],
     enabled: user?.role === "performer" && currentUser?.id === userId,
+  });
+  
+  const { data: savedQuestions = [] } = useQuery<SavedQuestion[]>({
+    queryKey: ["/api/saved-questions"],
+    enabled: !!currentUser && currentUser.id === userId,
   });
 
   const updateProfileMutation = useMutation({
@@ -345,8 +364,9 @@ export default function Profile() {
 
         {isOwnProfile && (
           <Tabs defaultValue="stats" className="w-full">
-            <TabsList className="grid w-full grid-cols-3">
+            <TabsList className="grid w-full grid-cols-4">
               <TabsTrigger value="stats" data-testid="tab-stats">Statistics</TabsTrigger>
+              <TabsTrigger value="saved" data-testid="tab-saved">Saved</TabsTrigger>
               <TabsTrigger value="messages" data-testid="tab-messages">Messages</TabsTrigger>
               <TabsTrigger value="notifications" data-testid="tab-notifications">Notifications</TabsTrigger>
             </TabsList>
@@ -418,6 +438,69 @@ export default function Profile() {
                   </div>
                 </div>
               )}
+            </TabsContent>
+
+            <TabsContent value="saved" className="mt-4">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Bookmark className="w-5 h-5" />
+                    Saved Questions ({savedQuestions.length})
+                  </CardTitle>
+                  <CardDescription>Questions you've bookmarked for later</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {savedQuestions.length === 0 ? (
+                    <p className="text-muted-foreground text-center py-8">
+                      No saved questions yet. Start exploring the Q&A Community!
+                    </p>
+                  ) : (
+                    <div className="space-y-3">
+                      {savedQuestions.map((question) => (
+                        <a
+                          key={question.id}
+                          href={`/community/questions/${question.id}`}
+                          className="block"
+                          data-testid={`saved-question-${question.id}`}
+                        >
+                          <Card className="hover-elevate">
+                            <CardHeader className="pb-3">
+                              <div className="flex items-start justify-between gap-4">
+                                <div className="flex-1">
+                                  <CardTitle className="text-lg mb-1">{question.title}</CardTitle>
+                                  <CardDescription className="line-clamp-2">
+                                    {question.content}
+                                  </CardDescription>
+                                </div>
+                                <Badge variant="outline">{question.category}</Badge>
+                              </div>
+                            </CardHeader>
+                            <CardContent className="pt-0">
+                              <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                                <div className="flex items-center gap-1">
+                                  <Eye className="w-3 h-3" />
+                                  <span>{question.viewCount} views</span>
+                                </div>
+                                <span>•</span>
+                                <span>Asked by {question.authorUsername}</span>
+                                <span>•</span>
+                                <span>{new Date(question.createdAt).toLocaleDateString()}</span>
+                              </div>
+                              <div className="flex flex-wrap gap-2 mt-2">
+                                {question.tags.map(tag => (
+                                  <Badge key={tag} variant="secondary" className="text-xs">
+                                    {tag}
+                                  </Badge>
+                                ))}
+                              </div>
+                            </CardContent>
+                          </Card>
+                        </a>
+                      ))}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
             </TabsContent>
 
             <TabsContent value="messages" className="mt-4">

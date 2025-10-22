@@ -1,5 +1,5 @@
 import { 
-  users, projects, tasks, taskSubmissions, badges, userBadges, taskApplications, questions, notifications,
+  users, projects, tasks, taskSubmissions, badges, userBadges, taskApplications, questions, notifications, questionVotes, savedQuestions, comments, commentVotes,
   type User, type InsertUser,
   type Project, type InsertProject,
   type Task, type InsertTask,
@@ -8,7 +8,8 @@ import {
   type UserBadge, type InsertUserBadge,
   type TaskApplication, type InsertTaskApplication,
   type Question, type InsertQuestion,
-  type Notification, type InsertNotification
+  type Notification, type InsertNotification,
+  type Comment, type InsertComment
 } from "@shared/schema";
 import { db, pool } from "./db";
 import { eq, and, desc, isNull } from "drizzle-orm";
@@ -68,8 +69,27 @@ export interface IStorage {
   // Question operations (Q&A Community)
   createQuestion(question: InsertQuestion): Promise<Question>;
   getQuestion(id: string): Promise<Question | undefined>;
+  getQuestionWithAuthor(id: string): Promise<(Question & { authorUsername: string }) | undefined>;
   getAllQuestions(): Promise<Array<Question & { authorUsername: string, answerCount: number, commentCount: number }>>;
   incrementQuestionViews(id: string): Promise<void>;
+  
+  // Question vote operations
+  voteQuestion(userId: string, questionId: string, vote: number): Promise<void>;
+  getQuestionVote(userId: string, questionId: string): Promise<{ vote: number } | undefined>;
+  getQuestionVoteCount(questionId: string): Promise<number>;
+  
+  // Saved question operations
+  saveQuestion(userId: string, questionId: string): Promise<void>;
+  unsaveQuestion(userId: string, questionId: string): Promise<void>;
+  getSavedQuestions(userId: string): Promise<Array<Question & { authorUsername: string }>>;
+  isQuestionSaved(userId: string, questionId: string): Promise<boolean>;
+  
+  // Comment operations
+  createComment(comment: InsertComment): Promise<Comment>;
+  getCommentsByQuestion(questionId: string): Promise<Array<Comment & { authorUsername: string }>>;
+  voteComment(userId: string, commentId: string, vote: number): Promise<void>;
+  getCommentVote(userId: string, commentId: string): Promise<{ vote: number } | undefined>;
+  getCommentVoteCount(commentId: string): Promise<number>;
   
   // Notification operations
   createNotification(notification: InsertNotification): Promise<Notification>;
@@ -320,6 +340,145 @@ export class DatabaseStorage implements IStorage {
         .set({ viewCount: question.viewCount + 1 })
         .where(eq(questions.id, id));
     }
+  }
+  
+  async getQuestionWithAuthor(id: string): Promise<(Question & { authorUsername: string }) | undefined> {
+    const results = await db
+      .select({
+        question: questions,
+        user: users,
+      })
+      .from(questions)
+      .leftJoin(users, eq(questions.userId, users.id))
+      .where(eq(questions.id, id));
+    
+    if (results.length === 0) return undefined;
+    
+    return {
+      ...results[0].question,
+      authorUsername: results[0].user?.username || 'Unknown',
+    };
+  }
+  
+  // Question vote operations
+  async voteQuestion(userId: string, questionId: string, vote: number): Promise<void> {
+    const existing = await db.select().from(questionVotes)
+      .where(and(eq(questionVotes.userId, userId), eq(questionVotes.questionId, questionId)));
+    
+    if (existing.length > 0) {
+      if (existing[0].vote === vote) {
+        await db.delete(questionVotes).where(eq(questionVotes.id, existing[0].id));
+      } else {
+        await db.update(questionVotes)
+          .set({ vote })
+          .where(eq(questionVotes.id, existing[0].id));
+      }
+    } else {
+      await db.insert(questionVotes).values({ userId, questionId, vote });
+    }
+  }
+  
+  async getQuestionVote(userId: string, questionId: string): Promise<{ vote: number } | undefined> {
+    const [vote] = await db.select().from(questionVotes)
+      .where(and(eq(questionVotes.userId, userId), eq(questionVotes.questionId, questionId)));
+    return vote ? { vote: vote.vote } : undefined;
+  }
+  
+  async getQuestionVoteCount(questionId: string): Promise<number> {
+    const votes = await db.select().from(questionVotes)
+      .where(eq(questionVotes.questionId, questionId));
+    return votes.reduce((sum, v) => sum + v.vote, 0);
+  }
+  
+  // Saved question operations
+  async saveQuestion(userId: string, questionId: string): Promise<void> {
+    const existing = await db.select().from(savedQuestions)
+      .where(and(eq(savedQuestions.userId, userId), eq(savedQuestions.questionId, questionId)));
+    
+    if (existing.length === 0) {
+      await db.insert(savedQuestions).values({ userId, questionId });
+    }
+  }
+  
+  async unsaveQuestion(userId: string, questionId: string): Promise<void> {
+    await db.delete(savedQuestions)
+      .where(and(eq(savedQuestions.userId, userId), eq(savedQuestions.questionId, questionId)));
+  }
+  
+  async getSavedQuestions(userId: string): Promise<Array<Question & { authorUsername: string }>> {
+    const results = await db
+      .select({
+        question: questions,
+        user: users,
+      })
+      .from(savedQuestions)
+      .leftJoin(questions, eq(savedQuestions.questionId, questions.id))
+      .leftJoin(users, eq(questions.userId, users.id))
+      .where(eq(savedQuestions.userId, userId))
+      .orderBy(desc(savedQuestions.createdAt));
+    
+    return results.map(r => ({
+      ...r.question!,
+      authorUsername: r.user?.username || 'Unknown',
+    }));
+  }
+  
+  async isQuestionSaved(userId: string, questionId: string): Promise<boolean> {
+    const [saved] = await db.select().from(savedQuestions)
+      .where(and(eq(savedQuestions.userId, userId), eq(savedQuestions.questionId, questionId)));
+    return !!saved;
+  }
+  
+  // Comment operations
+  async createComment(insertComment: InsertComment): Promise<Comment> {
+    const [comment] = await db.insert(comments).values(insertComment).returning();
+    return comment;
+  }
+  
+  async getCommentsByQuestion(questionId: string): Promise<Array<Comment & { authorUsername: string }>> {
+    const results = await db
+      .select({
+        comment: comments,
+        user: users,
+      })
+      .from(comments)
+      .leftJoin(users, eq(comments.userId, users.id))
+      .where(eq(comments.questionId, questionId))
+      .orderBy(comments.createdAt);
+    
+    return results.map(r => ({
+      ...r.comment,
+      authorUsername: r.user?.username || 'Unknown',
+    }));
+  }
+  
+  async voteComment(userId: string, commentId: string, vote: number): Promise<void> {
+    const existing = await db.select().from(commentVotes)
+      .where(and(eq(commentVotes.userId, userId), eq(commentVotes.commentId, commentId)));
+    
+    if (existing.length > 0) {
+      if (existing[0].vote === vote) {
+        await db.delete(commentVotes).where(eq(commentVotes.id, existing[0].id));
+      } else {
+        await db.update(commentVotes)
+          .set({ vote })
+          .where(eq(commentVotes.id, existing[0].id));
+      }
+    } else {
+      await db.insert(commentVotes).values({ userId, commentId, vote });
+    }
+  }
+  
+  async getCommentVote(userId: string, commentId: string): Promise<{ vote: number } | undefined> {
+    const [vote] = await db.select().from(commentVotes)
+      .where(and(eq(commentVotes.userId, userId), eq(commentVotes.commentId, commentId)));
+    return vote ? { vote: vote.vote } : undefined;
+  }
+  
+  async getCommentVoteCount(commentId: string): Promise<number> {
+    const votes = await db.select().from(commentVotes)
+      .where(eq(commentVotes.commentId, commentId));
+    return votes.reduce((sum, v) => sum + v.vote, 0);
   }
   
   // Notification operations

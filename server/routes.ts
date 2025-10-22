@@ -927,7 +927,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Q&A Community - Get a single question
   app.get("/api/questions/:id", async (req, res, next) => {
     try {
-      const question = await storage.getQuestion(req.params.id);
+      const question = await storage.getQuestionWithAuthor(req.params.id);
       if (!question) {
         return res.status(404).json({ error: "Question not found" });
       }
@@ -935,7 +935,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Increment view count
       await storage.incrementQuestionViews(req.params.id);
       
-      res.json(question);
+      // Get vote count
+      const voteCount = await storage.getQuestionVoteCount(req.params.id);
+      
+      res.json({ ...question, voteCount });
     } catch (error) {
       next(error);
     }
@@ -955,6 +958,98 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (error instanceof z.ZodError) {
         return res.status(400).json({ error: error.errors[0].message });
       }
+      next(error);
+    }
+  });
+  
+  // Q&A Community - Vote on a question
+  app.post("/api/questions/:id/vote", requireAuth, async (req, res, next) => {
+    try {
+      const { vote } = req.body;
+      if (vote !== 1 && vote !== -1) {
+        return res.status(400).json({ error: "Vote must be 1 or -1" });
+      }
+      
+      await storage.voteQuestion(req.user!.id, req.params.id, vote);
+      const voteCount = await storage.getQuestionVoteCount(req.params.id);
+      res.json({ voteCount });
+    } catch (error) {
+      next(error);
+    }
+  });
+  
+  // Q&A Community - Save/bookmark a question
+  app.post("/api/questions/:id/save", requireAuth, async (req, res, next) => {
+    try {
+      await storage.saveQuestion(req.user!.id, req.params.id);
+      res.json({ message: "Question saved successfully" });
+    } catch (error) {
+      next(error);
+    }
+  });
+  
+  // Q&A Community - Unsave a question
+  app.delete("/api/questions/:id/save", requireAuth, async (req, res, next) => {
+    try {
+      await storage.unsaveQuestion(req.user!.id, req.params.id);
+      res.json({ message: "Question unsaved successfully" });
+    } catch (error) {
+      next(error);
+    }
+  });
+  
+  // Q&A Community - Get saved questions
+  app.get("/api/saved-questions", requireAuth, async (req, res, next) => {
+    try {
+      const savedQuestions = await storage.getSavedQuestions(req.user!.id);
+      res.json(savedQuestions);
+    } catch (error) {
+      next(error);
+    }
+  });
+  
+  // Q&A Community - Get comments for a question
+  app.get("/api/questions/:id/comments", async (req, res, next) => {
+    try {
+      const comments = await storage.getCommentsByQuestion(req.params.id);
+      res.json(comments);
+    } catch (error) {
+      next(error);
+    }
+  });
+  
+  // Q&A Community - Create a comment
+  app.post("/api/questions/:id/comments", requireAuth, async (req, res, next) => {
+    try {
+      const { content } = req.body;
+      if (!content || content.trim().length === 0) {
+        return res.status(400).json({ error: "Comment content is required" });
+      }
+      
+      const comment = await storage.createComment({
+        questionId: req.params.id,
+        userId: req.user!.id,
+        content: content.trim(),
+      });
+      
+      res.status(201).json(comment);
+    } catch (error) {
+      next(error);
+    }
+  });
+  
+  // Q&A Community - Vote on a comment
+  app.post("/api/comments/:id/vote", requireAuth, async (req, res, next) => {
+    try {
+      const { vote } = req.body;
+      if (vote !== 1 && vote !== -1) {
+        return res.status(400).json({ error: "Vote must be 1 or -1" });
+      }
+      
+      await storage.voteComment(req.user!.id, req.params.id, vote);
+      const voteCount = await storage.getCommentVoteCount(req.params.id);
+      res.json({ voteCount });
+    } catch (error) {
       next(error);
     }
   });

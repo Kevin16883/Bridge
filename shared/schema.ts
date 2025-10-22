@@ -165,6 +165,23 @@ export const insertQuestionSchema = createInsertSchema(questions).omit({
 export type InsertQuestion = z.infer<typeof insertQuestionSchema>;
 export type Question = typeof questions.$inferSelect;
 
+// Question votes table
+export const questionVotes = pgTable("question_votes", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  questionId: varchar("question_id").notNull().references(() => questions.id),
+  userId: varchar("user_id").notNull().references(() => users.id),
+  vote: integer("vote").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const insertQuestionVoteSchema = createInsertSchema(questionVotes).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type InsertQuestionVote = z.infer<typeof insertQuestionVoteSchema>;
+export type QuestionVote = typeof questionVotes.$inferSelect;
+
 // Question answers table
 export const questionAnswers = pgTable("question_answers", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -209,7 +226,7 @@ export const commentVotes = pgTable("comment_votes", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   commentId: varchar("comment_id").notNull().references(() => comments.id),
   userId: varchar("user_id").notNull().references(() => users.id),
-  voteType: text("vote_type").notNull().$type<"upvote" | "downvote">(),
+  vote: integer("vote").notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
