@@ -20,6 +20,7 @@ import Community from "@/pages/community";
 import AskQuestion from "@/pages/ask-question";
 import Messages from "@/pages/messages";
 import UserProfile from "@/pages/user-profile";
+import Applications from "@/pages/applications";
 
 function Router() {
   return (
@@ -37,6 +38,7 @@ function Router() {
       <ProtectedRoute path="/community/ask" component={AskQuestion} />
       <ProtectedRoute path="/messages" component={Messages} />
       <ProtectedRoute path="/users/:userId" component={UserProfile} />
+      <ProtectedRoute path="/applications" component={Applications} />
       <Route component={NotFound} />
     </Switch>
   );

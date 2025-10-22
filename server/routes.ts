@@ -354,6 +354,38 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get performer's applications with task details (performer only)
+  app.get("/api/performer/applications", requirePerformer, async (req, res, next) => {
+    try {
+      const applications = await storage.getApplicationsWithTaskDetails(req.user!.id);
+      res.json(applications);
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  // Cancel/delete an application (performer only)
+  app.delete("/api/applications/:id", requirePerformer, async (req, res, next) => {
+    try {
+      // First verify the application belongs to the current performer
+      const applications = await storage.getApplicationsByPerformer(req.user!.id);
+      const application = applications.find(app => app.id === req.params.id);
+      
+      if (!application) {
+        return res.status(404).json({ error: "Application not found" });
+      }
+
+      if (application.status !== "pending") {
+        return res.status(400).json({ error: "Cannot cancel an application that has already been processed" });
+      }
+
+      await storage.deleteApplication(req.params.id);
+      res.json({ message: "Application cancelled successfully" });
+    } catch (error) {
+      next(error);
+    }
+  });
+
   // Get pending applications count for provider
   app.get("/api/provider/pending-applications-count", requireProvider, async (req, res, next) => {
     try {

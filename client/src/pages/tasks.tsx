@@ -1,10 +1,13 @@
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "wouter";
+import { useState, useMemo } from "react";
 import { Header } from "@/components/header";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Briefcase, DollarSign, Clock, Target } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Briefcase, DollarSign, Clock, Target, Search } from "lucide-react";
 
 interface Task {
   id: string;
@@ -19,11 +22,46 @@ interface Task {
 }
 
 export default function Tasks() {
+  const [searchQuery, setSearchQuery] = useState("");
+  const [difficultyFilter, setDifficultyFilter] = useState<string>("all");
+  const [skillFilter, setSkillFilter] = useState<string>("all");
+
   const { data: tasks, isLoading } = useQuery<Task[]>({
     queryKey: ["/api/tasks"],
   });
 
   const availableTasks = tasks?.filter(t => t.status === "pending" && !t.matchedPerformerId);
+
+  // Extract all unique skills from tasks
+  const allSkills = useMemo(() => {
+    if (!availableTasks) return [];
+    const skillsSet = new Set<string>();
+    availableTasks.forEach(task => {
+      task.skills?.forEach(skill => skillsSet.add(skill));
+    });
+    return Array.from(skillsSet).sort();
+  }, [availableTasks]);
+
+  // Filter and search tasks
+  const filteredTasks = useMemo(() => {
+    if (!availableTasks) return [];
+    
+    return availableTasks.filter(task => {
+      // Search by title or description
+      const matchesSearch = searchQuery === "" || 
+        task.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        task.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        task.skills?.some(skill => skill.toLowerCase().includes(searchQuery.toLowerCase()));
+      
+      // Filter by difficulty
+      const matchesDifficulty = difficultyFilter === "all" || task.difficulty === difficultyFilter;
+      
+      // Filter by skill
+      const matchesSkill = skillFilter === "all" || task.skills?.includes(skillFilter);
+      
+      return matchesSearch && matchesDifficulty && matchesSkill;
+    });
+  }, [availableTasks, searchQuery, difficultyFilter, skillFilter]);
 
   const difficultyColors = {
     beginner: "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400",
@@ -46,18 +84,94 @@ export default function Tasks() {
           </p>
         </div>
 
+        {/* Search and Filters */}
+        <div className="mb-6 space-y-4">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
+            <Input
+              type="text"
+              placeholder="Search by title, description, or skills..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-10"
+              data-testid="input-search"
+            />
+          </div>
+          <div className="flex gap-4 flex-wrap">
+            <Select value={difficultyFilter} onValueChange={setDifficultyFilter}>
+              <SelectTrigger className="w-[180px]" data-testid="select-difficulty">
+                <SelectValue placeholder="Filter by difficulty" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Difficulties</SelectItem>
+                <SelectItem value="easy">Easy</SelectItem>
+                <SelectItem value="medium">Medium</SelectItem>
+                <SelectItem value="hard">Hard</SelectItem>
+                <SelectItem value="beginner">Beginner</SelectItem>
+                <SelectItem value="intermediate">Intermediate</SelectItem>
+                <SelectItem value="advanced">Advanced</SelectItem>
+              </SelectContent>
+            </Select>
+            <Select value={skillFilter} onValueChange={setSkillFilter}>
+              <SelectTrigger className="w-[200px]" data-testid="select-skill">
+                <SelectValue placeholder="Filter by skill" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Skills</SelectItem>
+                {allSkills.map(skill => (
+                  <SelectItem key={skill} value={skill}>{skill}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {(searchQuery || difficultyFilter !== "all" || skillFilter !== "all") && (
+              <Button 
+                variant="outline" 
+                onClick={() => {
+                  setSearchQuery("");
+                  setDifficultyFilter("all");
+                  setSkillFilter("all");
+                }}
+                data-testid="button-clear-filters"
+              >
+                Clear Filters
+              </Button>
+            )}
+          </div>
+          <p className="text-sm text-muted-foreground">
+            Showing {filteredTasks?.length || 0} of {availableTasks?.length || 0} available tasks
+          </p>
+        </div>
+
         {isLoading ? (
           <div className="flex items-center justify-center h-64">
             <p className="text-muted-foreground">Loading tasks...</p>
           </div>
-        ) : !availableTasks || availableTasks.length === 0 ? (
+        ) : !filteredTasks || filteredTasks.length === 0 ? (
           <Card>
             <CardContent className="p-12 text-center">
               <Target className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
-              <h3 className="text-xl font-semibold mb-2">No Available Tasks</h3>
+              <h3 className="text-xl font-semibold mb-2">
+                {!availableTasks || availableTasks.length === 0 ? "No Available Tasks" : "No Matching Tasks"}
+              </h3>
               <p className="text-muted-foreground mb-4">
-                Check back later for new opportunities
+                {!availableTasks || availableTasks.length === 0 
+                  ? "Check back later for new opportunities"
+                  : "Try adjusting your search or filters"}
               </p>
+              {(searchQuery || difficultyFilter !== "all" || skillFilter !== "all") && (
+                <Button 
+                  variant="outline" 
+                  onClick={() => {
+                    setSearchQuery("");
+                    setDifficultyFilter("all");
+                    setSkillFilter("all");
+                  }}
+                  className="mb-4"
+                  data-testid="button-clear-filters-empty"
+                >
+                  Clear Filters
+                </Button>
+              )}
               <Link href="/performer-dashboard">
                 <Button variant="outline" data-testid="button-back-to-dashboard">
                   Back to Dashboard
@@ -67,7 +181,7 @@ export default function Tasks() {
           </Card>
         ) : (
           <div className="grid gap-4">
-            {availableTasks.map((task) => (
+            {filteredTasks.map((task) => (
               <Card key={task.id} className="hover-elevate" data-testid={`card-task-${task.id}`}>
                 <CardHeader>
                   <div className="flex items-start justify-between">

@@ -1,7 +1,10 @@
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "wouter";
-import { Plus, Briefcase, Clock, CheckCircle2, XCircle, BarChart3, UserCheck } from "lucide-react";
+import { useState, useMemo } from "react";
+import { Plus, Briefcase, Clock, CheckCircle2, XCircle, BarChart3, UserCheck, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Header } from "@/components/header";
@@ -15,6 +18,9 @@ interface Project {
 }
 
 export default function ProviderDashboard() {
+  const [searchQuery, setSearchQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState<string>("all");
+
   const { data: projects, isLoading } = useQuery<Project[]>({
     queryKey: ["/api/projects"],
   });
@@ -22,6 +28,22 @@ export default function ProviderDashboard() {
   const { data: pendingApplicationsData } = useQuery<{ count: number }>({
     queryKey: ["/api/provider/pending-applications-count"],
   });
+
+  // Filter and search projects
+  const filteredProjects = useMemo(() => {
+    if (!projects) return [];
+    
+    return projects.filter(project => {
+      // Search by demand text
+      const matchesSearch = searchQuery === "" || 
+        project.originalDemand.toLowerCase().includes(searchQuery.toLowerCase());
+      
+      // Filter by status
+      const matchesStatus = statusFilter === "all" || project.status === statusFilter;
+      
+      return matchesSearch && matchesStatus;
+    });
+  }, [projects, searchQuery, statusFilter]);
 
   const statusIcons: Record<string, any> = {
     draft: Clock,
@@ -39,8 +61,8 @@ export default function ProviderDashboard() {
     cancelled: "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400 border-red-200 dark:border-red-800",
   };
 
-  const activeProjects = projects?.filter(p => p.status === "active").length || 0;
-  const completedProjects = projects?.filter(p => p.status === "completed").length || 0;
+  const activeProjects = filteredProjects?.filter(p => p.status === "active").length || 0;
+  const completedProjects = filteredProjects?.filter(p => p.status === "completed").length || 0;
   const pendingApplications = pendingApplicationsData?.count || 0;
 
   return (
@@ -111,8 +133,10 @@ export default function ProviderDashboard() {
                   <Briefcase className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">{projects?.length || 0}</div>
-                  <p className="text-xs text-muted-foreground">All time</p>
+                  <div className="text-2xl font-bold">{filteredProjects?.length || 0}</div>
+                  <p className="text-xs text-muted-foreground">
+                    {(searchQuery || statusFilter !== "all") ? "Filtered" : "All time"}
+                  </p>
                 </CardContent>
               </Card>
             </div>
@@ -136,8 +160,75 @@ export default function ProviderDashboard() {
             ) : (
               <div>
                 <h2 className="text-2xl font-bold mb-4">My Projects</h2>
-                <div className="grid gap-4">
-                  {projects.map((project) => {
+                
+                {/* Search and Filters */}
+                <div className="mb-6 space-y-4">
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
+                    <Input
+                      type="text"
+                      placeholder="Search projects by demand description..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className="pl-10"
+                      data-testid="input-search"
+                    />
+                  </div>
+                  <div className="flex gap-4 flex-wrap items-center">
+                    <Select value={statusFilter} onValueChange={setStatusFilter}>
+                      <SelectTrigger className="w-[180px]" data-testid="select-status">
+                        <SelectValue placeholder="Filter by status" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All Statuses</SelectItem>
+                        <SelectItem value="draft">Draft</SelectItem>
+                        <SelectItem value="open">Open</SelectItem>
+                        <SelectItem value="active">Active</SelectItem>
+                        <SelectItem value="completed">Completed</SelectItem>
+                        <SelectItem value="cancelled">Cancelled</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    {(searchQuery || statusFilter !== "all") && (
+                      <Button 
+                        variant="outline" 
+                        onClick={() => {
+                          setSearchQuery("");
+                          setStatusFilter("all");
+                        }}
+                        data-testid="button-clear-filters"
+                      >
+                        Clear Filters
+                      </Button>
+                    )}
+                    <p className="text-sm text-muted-foreground ml-auto">
+                      Showing {filteredProjects?.length || 0} of {projects?.length || 0} projects
+                    </p>
+                  </div>
+                </div>
+
+                {filteredProjects.length === 0 ? (
+                  <Card>
+                    <CardContent className="p-12 text-center">
+                      <Briefcase className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
+                      <h3 className="text-xl font-semibold mb-2">No Matching Projects</h3>
+                      <p className="text-muted-foreground mb-4">
+                        Try adjusting your search or filters
+                      </p>
+                      <Button 
+                        variant="outline" 
+                        onClick={() => {
+                          setSearchQuery("");
+                          setStatusFilter("all");
+                        }}
+                        data-testid="button-clear-filters-empty"
+                      >
+                        Clear Filters
+                      </Button>
+                    </CardContent>
+                  </Card>
+                ) : (
+                  <div className="grid gap-4">
+                    {filteredProjects.map((project) => {
                     const StatusIcon = statusIcons[project.status];
                     return (
                       <Card key={project.id} className="hover-elevate" data-testid={`card-project-${project.id}`}>
@@ -170,7 +261,8 @@ export default function ProviderDashboard() {
                       </Card>
                     );
                   })}
-                </div>
+                  </div>
+                )}
               </div>
             )}
           </>

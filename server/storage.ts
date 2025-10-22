@@ -58,7 +58,9 @@ export interface IStorage {
   createTaskApplication(application: InsertTaskApplication): Promise<TaskApplication>;
   getApplicationsByTask(taskId: string): Promise<TaskApplication[]>;
   getApplicationsByPerformer(performerId: string): Promise<TaskApplication[]>;
+  getApplicationsWithTaskDetails(performerId: string): Promise<Array<TaskApplication & { task: Task }>>;
   updateApplicationStatus(id: string, status: "pending" | "accepted" | "rejected"): Promise<void>;
+  deleteApplication(id: string): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -127,7 +129,11 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getAvailableTasks(): Promise<Task[]> {
-    return await db.select().from(tasks).where(eq(tasks.status, "pending"));
+    return await db.select().from(tasks)
+      .where(and(
+        eq(tasks.status, "pending"),
+        eq(tasks.matchedPerformerId, null)
+      ));
   }
 
   async updateTaskStatus(id: string, status: "pending" | "matched" | "in_progress" | "completed"): Promise<void> {
@@ -226,6 +232,24 @@ export class DatabaseStorage implements IStorage {
 
   async updateApplicationStatus(id: string, status: "pending" | "accepted" | "rejected"): Promise<void> {
     await db.update(taskApplications).set({ status }).where(eq(taskApplications.id, id));
+  }
+
+  async getApplicationsWithTaskDetails(performerId: string): Promise<Array<TaskApplication & { task: Task }>> {
+    const results = await db
+      .select()
+      .from(taskApplications)
+      .leftJoin(tasks, eq(taskApplications.taskId, tasks.id))
+      .where(eq(taskApplications.performerId, performerId))
+      .orderBy(desc(taskApplications.appliedAt));
+    
+    return results.map(r => ({
+      ...r.task_applications,
+      task: r.tasks!
+    }));
+  }
+
+  async deleteApplication(id: string): Promise<void> {
+    await db.delete(taskApplications).where(eq(taskApplications.id, id));
   }
 }
 
