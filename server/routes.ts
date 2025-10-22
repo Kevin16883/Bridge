@@ -2,9 +2,10 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { setupAuth } from "./auth";
-import { analyzeAndBreakdownDemand } from "./ai";
-import { insertProjectSchema, insertTaskSchema, insertTaskSubmissionSchema, insertQuestionSchema } from "@shared/schema";
+import { analyzeAndBreakdownDemand, generateWeeklyReport } from "./ai";
+import { insertProjectSchema, insertTaskSchema, insertTaskSubmissionSchema, insertQuestionSchema, insertUserActivitySchema, insertWeeklyReportSchema } from "@shared/schema";
 import { z } from "zod";
+import { format, startOfWeek, endOfWeek, subDays } from "date-fns";
 
 function requireAuth(req: any, res: any, next: any) {
   if (!req.isAuthenticated()) {
@@ -1326,6 +1327,124 @@ export async function registerRoutes(app: Express): Promise<Server> {
       await storage.markMessagesAsRead(req.params.userId, req.user!.id);
       res.json({ success: true });
     } catch (error) {
+      next(error);
+    }
+  });
+  
+  // User activity routes
+  app.post("/api/activities", requireAuth, async (req, res, next) => {
+    try {
+      const activityData = insertUserActivitySchema.parse({
+        ...req.body,
+        userId: req.user!.id,
+        activityDate: req.body.activityDate || format(new Date(), 'yyyy-MM-dd'),
+      });
+      
+      const activity = await storage.recordActivity(activityData);
+      res.json(activity);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ error: error.errors[0].message });
+      }
+      next(error);
+    }
+  });
+  
+  app.get("/api/activities", requireAuth, async (req, res, next) => {
+    try {
+      const { startDate, endDate } = req.query;
+      const activities = await storage.getUserActivities(
+        req.user!.id, 
+        startDate as string, 
+        endDate as string
+      );
+      res.json(activities);
+    } catch (error) {
+      next(error);
+    }
+  });
+  
+  app.get("/api/activities/summary", requireAuth, async (req, res, next) => {
+    try {
+      const { startDate, endDate } = req.query;
+      
+      if (!startDate || !endDate) {
+        return res.status(400).json({ error: "startDate and endDate are required" });
+      }
+      
+      const summary = await storage.getUserActivitySummary(
+        req.user!.id, 
+        startDate as string, 
+        endDate as string
+      );
+      res.json(summary);
+    } catch (error) {
+      next(error);
+    }
+  });
+  
+  // Weekly report routes
+  app.get("/api/weekly-reports", requireAuth, async (req, res, next) => {
+    try {
+      const reports = await storage.getUserWeeklyReports(req.user!.id);
+      res.json(reports);
+    } catch (error) {
+      next(error);
+    }
+  });
+  
+  app.get("/api/weekly-reports/latest", requireAuth, async (req, res, next) => {
+    try {
+      const report = await storage.getLatestWeeklyReport(req.user!.id);
+      res.json(report || null);
+    } catch (error) {
+      next(error);
+    }
+  });
+  
+  app.post("/api/weekly-reports/generate", requireAuth, async (req, res, next) => {
+    try {
+      const weekStart = startOfWeek(new Date(), { weekStartsOn: 1 });
+      const weekEnd = endOfWeek(new Date(), { weekStartsOn: 1 });
+      
+      const weekStartStr = format(weekStart, 'yyyy-MM-dd');
+      const weekEndStr = format(weekEnd, 'yyyy-MM-dd');
+      
+      // Check if report already exists for this week
+      const existingReport = await storage.getWeeklyReport(req.user!.id, weekStartStr);
+      if (existingReport) {
+        return res.json(existingReport);
+      }
+      
+      // Get user activities for the week
+      const summary = await storage.getUserActivitySummary(req.user!.id, weekStartStr, weekEndStr);
+      
+      // Generate AI report
+      const aiReport = await generateWeeklyReport(
+        req.user!.username,
+        req.user!.role as "provider" | "performer",
+        summary
+      );
+      
+      // Create weekly report
+      const reportData = insertWeeklyReportSchema.parse({
+        userId: req.user!.id,
+        weekStart: weekStartStr,
+        weekEnd: weekEndStr,
+        summary: aiReport.summary,
+        activitiesCount: summary.totalActivities,
+        totalDuration: summary.totalDuration,
+        achievements: aiReport.achievements,
+        evaluation: aiReport.evaluation,
+        suggestions: aiReport.suggestions,
+      });
+      
+      const report = await storage.createWeeklyReport(reportData);
+      res.json(report);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ error: error.errors[0].message });
+      }
       next(error);
     }
   });
