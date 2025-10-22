@@ -379,15 +379,39 @@ export const insertTimeTrackingSchema = createInsertSchema(timeTracking).omit({
 export type InsertTimeTracking = z.infer<typeof insertTimeTrackingSchema>;
 export type TimeTracking = typeof timeTracking.$inferSelect;
 
+// User activities table (General activity tracking for calendar)
+export const userActivities = pgTable("user_activities", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id),
+  activityType: text("activity_type").notNull().$type<
+    "login" | "create_project" | "create_task" | "apply_task" | 
+    "submit_task" | "ask_question" | "answer_question" | "comment" | 
+    "message" | "complete_task" | "earn_badge"
+  >(),
+  activityDate: text("activity_date").notNull(),
+  duration: integer("duration").notNull().default(0),
+  metadata: jsonb("metadata"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const insertUserActivitySchema = createInsertSchema(userActivities).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type InsertUserActivity = z.infer<typeof insertUserActivitySchema>;
+export type UserActivity = typeof userActivities.$inferSelect;
+
 // Weekly reports table
 export const weeklyReports = pgTable("weekly_reports", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  performerId: varchar("performer_id").notNull().references(() => users.id),
+  userId: varchar("user_id").notNull().references(() => users.id),
   weekStart: text("week_start").notNull(),
   weekEnd: text("week_end").notNull(),
   summary: text("summary").notNull(),
-  tasksCompleted: integer("tasks_completed").notNull().default(0),
-  totalHours: integer("total_hours").notNull().default(0),
+  activitiesCount: integer("activities_count").notNull().default(0),
+  totalDuration: integer("total_duration").notNull().default(0),
+  achievements: text("achievements").array().notNull().default(sql`ARRAY[]::text[]`),
   evaluation: text("evaluation").notNull(),
   suggestions: text("suggestions").notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),

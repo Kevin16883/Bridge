@@ -1,5 +1,5 @@
 import { 
-  users, projects, tasks, taskSubmissions, badges, userBadges, taskApplications, questions, notifications, questionVotes, savedQuestions, comments, commentVotes, follows, userRatings, messages,
+  users, projects, tasks, taskSubmissions, badges, userBadges, taskApplications, questions, notifications, questionVotes, savedQuestions, comments, commentVotes, follows, userRatings, messages, userActivities, weeklyReports,
   type User, type InsertUser,
   type Project, type InsertProject,
   type Task, type InsertTask,
@@ -12,7 +12,9 @@ import {
   type Comment, type InsertComment,
   type Follow, type InsertFollow,
   type UserRating, type InsertUserRating,
-  type Message, type InsertMessage
+  type Message, type InsertMessage,
+  type UserActivity, type InsertUserActivity,
+  type WeeklyReport, type InsertWeeklyReport
 } from "@shared/schema";
 import { db, pool } from "./db";
 import { eq, and, desc, isNull } from "drizzle-orm";
@@ -127,6 +129,22 @@ export interface IStorage {
   }>>;
   getMessagesBetweenUsers(userId1: string, userId2: string): Promise<Array<Message & { senderUsername: string, receiverUsername: string }>>;
   markMessagesAsRead(senderId: string, receiverId: string): Promise<void>;
+  
+  // User activity operations
+  recordActivity(activity: InsertUserActivity): Promise<UserActivity>;
+  getUserActivities(userId: string, startDate?: string, endDate?: string): Promise<UserActivity[]>;
+  getUserActivitySummary(userId: string, startDate: string, endDate: string): Promise<{
+    totalActivities: number;
+    totalDuration: number;
+    activitiesByType: Record<string, number>;
+    activitiesByDate: Record<string, { count: number; duration: number }>;
+  }>;
+  
+  // Weekly report operations
+  createWeeklyReport(report: InsertWeeklyReport): Promise<WeeklyReport>;
+  getUserWeeklyReports(userId: string): Promise<WeeklyReport[]>;
+  getLatestWeeklyReport(userId: string): Promise<WeeklyReport | undefined>;
+  getWeeklyReport(userId: string, weekStart: string): Promise<WeeklyReport | undefined>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -790,6 +808,85 @@ export class DatabaseStorage implements IStorage {
           eq(messages.receiverId, receiverId)
         )
       );
+  }
+  
+  // User activity operations
+  async recordActivity(insertActivity: InsertUserActivity): Promise<UserActivity> {
+    const [activity] = await db.insert(userActivities).values(insertActivity).returning();
+    return activity;
+  }
+  
+  async getUserActivities(userId: string, startDate?: string, endDate?: string): Promise<UserActivity[]> {
+    let query = db.select().from(userActivities).where(eq(userActivities.userId, userId));
+    
+    if (startDate && endDate) {
+      const result = await query;
+      return result.filter(a => a.activityDate >= startDate && a.activityDate <= endDate);
+    }
+    
+    return await query.orderBy(desc(userActivities.activityDate));
+  }
+  
+  async getUserActivitySummary(userId: string, startDate: string, endDate: string): Promise<{
+    totalActivities: number;
+    totalDuration: number;
+    activitiesByType: Record<string, number>;
+    activitiesByDate: Record<string, { count: number; duration: number }>;
+  }> {
+    const activities = await this.getUserActivities(userId, startDate, endDate);
+    
+    const summary = {
+      totalActivities: activities.length,
+      totalDuration: activities.reduce((sum, a) => sum + a.duration, 0),
+      activitiesByType: {} as Record<string, number>,
+      activitiesByDate: {} as Record<string, { count: number; duration: number }>,
+    };
+    
+    activities.forEach(activity => {
+      // Count by type
+      summary.activitiesByType[activity.activityType] = 
+        (summary.activitiesByType[activity.activityType] || 0) + 1;
+      
+      // Count by date
+      if (!summary.activitiesByDate[activity.activityDate]) {
+        summary.activitiesByDate[activity.activityDate] = { count: 0, duration: 0 };
+      }
+      summary.activitiesByDate[activity.activityDate].count++;
+      summary.activitiesByDate[activity.activityDate].duration += activity.duration;
+    });
+    
+    return summary;
+  }
+  
+  // Weekly report operations
+  async createWeeklyReport(insertReport: InsertWeeklyReport): Promise<WeeklyReport> {
+    const [report] = await db.insert(weeklyReports).values(insertReport).returning();
+    return report;
+  }
+  
+  async getUserWeeklyReports(userId: string): Promise<WeeklyReport[]> {
+    return await db.select().from(weeklyReports)
+      .where(eq(weeklyReports.userId, userId))
+      .orderBy(desc(weeklyReports.weekStart));
+  }
+  
+  async getLatestWeeklyReport(userId: string): Promise<WeeklyReport | undefined> {
+    const [report] = await db.select().from(weeklyReports)
+      .where(eq(weeklyReports.userId, userId))
+      .orderBy(desc(weeklyReports.createdAt))
+      .limit(1);
+    return report || undefined;
+  }
+  
+  async getWeeklyReport(userId: string, weekStart: string): Promise<WeeklyReport | undefined> {
+    const [report] = await db.select().from(weeklyReports)
+      .where(
+        and(
+          eq(weeklyReports.userId, userId),
+          eq(weeklyReports.weekStart, weekStart)
+        )
+      );
+    return report || undefined;
   }
 }
 
