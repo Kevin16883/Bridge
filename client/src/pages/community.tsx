@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "wouter";
-import { Plus, MessageSquare, Eye, Tag, Search } from "lucide-react";
+import { Plus, MessageSquare, Eye, Tag, Search, ThumbsUp, ThumbsDown, Bookmark, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -156,6 +156,23 @@ export default function Community() {
                   </div>
                   <div className="mt-3 text-xs text-muted-foreground">
                     Asked by <span className="font-medium">{question.authorUsername}</span> • {new Date(question.createdAt).toLocaleDateString()}
+                  </div>
+                  <div className="flex items-center gap-2 mt-3">
+                    <Button variant="ghost" size="sm" className="h-8 gap-1" data-testid={`button-upvote-${question.id}`}>
+                      <ThumbsUp className="w-4 h-4" />
+                      <span>0</span>
+                    </Button>
+                    <Button variant="ghost" size="sm" className="h-8 gap-1" data-testid={`button-downvote-${question.id}`}>
+                      <ThumbsDown className="w-4 h-4" />
+                    </Button>
+                    <Button variant="ghost" size="sm" className="h-8 gap-1" data-testid={`button-save-${question.id}`}>
+                      <Bookmark className="w-4 h-4" />
+                      Save
+                    </Button>
+                    <Button variant="ghost" size="sm" className="h-8 gap-1" data-testid={`button-ai-answer-${question.id}`}>
+                      <Sparkles className="w-4 h-4" />
+                      AI Answer
+                    </Button>
                   </div>
                 </CardContent>
               </Card>

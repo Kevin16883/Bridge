@@ -10,6 +10,27 @@ The system serves two primary user personas:
 
 ## Recent Changes (October 22, 2025)
 
+**Session 3 - User Profile System and Q&A Enhancements**
+- **User Profile System**:
+  - Extended users table with profile fields: avatar, bio, company, location, website, skills, rating
+  - Created comprehensive profile page (/users/:id) with edit functionality
+  - Added profile editing API with strict security validation
+  - Integrated Messages and Notifications tabs into profile (placeholder)
+  - Added "View Profile" option in Header user menu
+- **Task List Enhancements**:
+  - Modified `getAvailableTasks()` to return Provider information (username and ID)
+  - Tasks now display Provider information with clickable link to Provider profile
+  - Performers can view Provider details from task cards
+- **Q&A UI Enhancements**:
+  - Added upvote/downvote buttons with vote counts
+  - Added save button for bookmarking questions
+  - Added AI Answer button (UI only, backend pending)
+  - Improved visual design with action buttons
+- **Security Fixes**:
+  - Implemented strict Zod validation for profile updates
+  - Whitelisted allowed fields to prevent privilege escalation
+  - Added max length constraints for text fields
+
 **Session 2 - Q&A Community Fixes and Navigation Refactor**
 - Fixed Q&A Community questions not displaying by implementing full storage layer and API endpoints
 - Added `createQuestion()`, `getQuestion()`, `getAllQuestions()`, `incrementQuestionViews()` storage methods

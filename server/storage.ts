@@ -36,7 +36,7 @@ export interface IStorage {
   getTask(id: string): Promise<Task | undefined>;
   getTasksByProject(projectId: string): Promise<Task[]>;
   getTasksByPerformer(performerId: string): Promise<Task[]>;
-  getAvailableTasks(): Promise<Task[]>;
+  getAvailableTasks(): Promise<Array<Task & { providerUsername: string, providerId: string }>>;
   updateTaskStatus(id: string, status: "pending" | "matched" | "in_progress" | "completed"): Promise<void>;
   matchTaskToPerformer(taskId: string, performerId: string): Promise<void>;
   
@@ -140,12 +140,26 @@ export class DatabaseStorage implements IStorage {
     return await db.select().from(tasks).where(eq(tasks.matchedPerformerId, performerId));
   }
 
-  async getAvailableTasks(): Promise<Task[]> {
-    return await db.select().from(tasks)
+  async getAvailableTasks(): Promise<Array<Task & { providerUsername: string, providerId: string }>> {
+    const results = await db
+      .select({
+        task: tasks,
+        project: projects,
+        provider: users,
+      })
+      .from(tasks)
+      .leftJoin(projects, eq(tasks.projectId, projects.id))
+      .leftJoin(users, eq(projects.providerId, users.id))
       .where(and(
         eq(tasks.status, "pending"),
         isNull(tasks.matchedPerformerId)
       ));
+    
+    return results.map(r => ({
+      ...r.task,
+      providerUsername: r.provider?.username || 'Unknown',
+      providerId: r.project?.providerId || '',
+    }));
   }
 
   async updateTaskStatus(id: string, status: "pending" | "matched" | "in_progress" | "completed"): Promise<void> {

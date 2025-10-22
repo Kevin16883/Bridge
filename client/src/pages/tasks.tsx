@@ -19,7 +19,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { Briefcase, DollarSign, Clock, Target, Search, Trash2, CheckCircle2, XCircle } from "lucide-react";
+import { Briefcase, DollarSign, Clock, Target, Search, Trash2, CheckCircle2, XCircle, User } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 
@@ -33,6 +33,8 @@ interface Task {
   difficulty: string;
   status: string;
   matchedPerformerId: string | null;
+  providerUsername?: string;
+  providerId?: string;
 }
 
 interface Application {
@@ -267,6 +269,16 @@ export default function Tasks() {
                       <div className="flex items-start justify-between">
                         <div className="flex-1">
                           <CardTitle className="text-lg">{task.title}</CardTitle>
+                          {task.providerUsername && task.providerId && (
+                            <div className="mt-1">
+                              <Link href={`/users/${task.providerId}`}>
+                                <Button variant="ghost" size="sm" className="h-6 px-2 text-xs hover-elevate" data-testid={`link-provider-${task.id}`}>
+                                  <User className="w-3 h-3 mr-1" />
+                                  {task.providerUsername}
+                                </Button>
+                              </Link>
+                            </div>
+                          )}
                           <CardDescription className="mt-2 line-clamp-2">
                             {task.description}
                           </CardDescription>

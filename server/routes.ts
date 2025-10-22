@@ -736,18 +736,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Update user profile
   app.patch("/api/user/profile", requireAuth, async (req, res, next) => {
     try {
-      const updateData = z.object({
+      // Strict whitelist of allowed profile fields - prevents privilege escalation
+      const profileUpdateSchema = z.object({
         avatar: z.string().optional(),
-        bio: z.string().optional(),
-        company: z.string().optional(),
-        location: z.string().optional(),
+        bio: z.string().max(500).optional(),
+        company: z.string().max(100).optional(),
+        location: z.string().max(100).optional(),
         website: z.string().url().optional().or(z.literal("")),
-        skills: z.array(z.string()).optional(),
-      }).parse(req.body);
+        skills: z.array(z.string()).max(20).optional(),
+      }).strict(); // .strict() rejects any extra fields
       
+      const updateData = profileUpdateSchema.parse(req.body);
+      
+      // Only allow users to update their own profile
       await storage.updateUserProfile(req.user!.id, updateData);
       const updatedUser = await storage.getUser(req.user!.id);
-      res.json(updatedUser);
+      
+      // Remove sensitive data before sending
+      if (updatedUser) {
+        const { password, ...safeUser } = updatedUser;
+        res.json(safeUser);
+      } else {
+        res.status(404).json({ error: "User not found" });
+      }
     } catch (error) {
       if (error instanceof z.ZodError) {
         return res.status(400).json({ error: error.errors[0].message });
