@@ -36,9 +36,11 @@ export default function Messages() {
   
   // Get user ID from URL query parameter
   useEffect(() => {
-    const queryString = location.includes('?') ? location.split('?')[1] : '';
-    const params = new URLSearchParams(queryString);
-    const userParam = params.get('user');
+    // Use window.location.search for more reliable query string parsing
+    const searchParams = new URLSearchParams(window.location.search);
+    const userParam = searchParams.get('user');
+    console.log('Messages page - URL search:', window.location.search);
+    console.log('Messages page - user param:', userParam);
     if (userParam) {
       setSelectedUserId(userParam);
     }
@@ -117,12 +119,24 @@ export default function Messages() {
   // Get display name for selected user
   const selectedUserDisplayName = selectedConversation?.username || selectedUserInfo?.username || "User";
 
+  // Debug logging
+  console.log('Messages render - selectedUserId:', selectedUserId);
+  console.log('Messages render - selectedUserDisplayName:', selectedUserDisplayName);
+  console.log('Messages render - conversations:', conversations);
+
   return (
     <div className="min-h-screen bg-background">
       <Header />
       
       <div className="container mx-auto p-6">
         <h1 className="text-3xl font-bold mb-6">Messages</h1>
+        
+        {selectedUserId && (
+          <div className="mb-4 p-2 bg-yellow-500/10 border border-yellow-500/20 rounded">
+            <p className="text-sm">Debug: Selected User ID = {selectedUserId}</p>
+            <p className="text-sm">Display Name = {selectedUserDisplayName}</p>
+          </div>
+        )}
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <Card className="lg:col-span-1 h-[calc(100vh-200px)]">
