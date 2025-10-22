@@ -733,6 +733,45 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Update user profile
+  app.patch("/api/user/profile", requireAuth, async (req, res, next) => {
+    try {
+      const updateData = z.object({
+        avatar: z.string().optional(),
+        bio: z.string().optional(),
+        company: z.string().optional(),
+        location: z.string().optional(),
+        website: z.string().url().optional().or(z.literal("")),
+        skills: z.array(z.string()).optional(),
+      }).parse(req.body);
+      
+      await storage.updateUserProfile(req.user!.id, updateData);
+      const updatedUser = await storage.getUser(req.user!.id);
+      res.json(updatedUser);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ error: error.errors[0].message });
+      }
+      next(error);
+    }
+  });
+
+  // Get user by ID (public profile)
+  app.get("/api/users/:id", async (req, res, next) => {
+    try {
+      const user = await storage.getUser(req.params.id);
+      if (!user) {
+        return res.status(404).json({ error: "User not found" });
+      }
+      
+      // Don't send password
+      const { password, ...userWithoutPassword } = user;
+      res.json(userWithoutPassword);
+    } catch (error) {
+      next(error);
+    }
+  });
+
   // Q&A Community - Get all questions
   app.get("/api/questions", async (req, res, next) => {
     try {

@@ -10,6 +10,14 @@ export const users = pgTable("users", {
   password: text("password").notNull(),
   role: text("role").notNull().$type<"provider" | "performer">(),
   email: text("email"),
+  // Profile fields
+  avatar: text("avatar"),
+  bio: text("bio"),
+  company: text("company"),
+  location: text("location"),
+  website: text("website"),
+  skills: text("skills").array(),
+  rating: integer("rating").default(0),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 

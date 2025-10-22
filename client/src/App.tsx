@@ -19,7 +19,7 @@ import Tasks from "@/pages/tasks";
 import Community from "@/pages/community";
 import AskQuestion from "@/pages/ask-question";
 import Messages from "@/pages/messages";
-import UserProfile from "@/pages/user-profile";
+import UserProfile from "@/pages/profile";
 import Applications from "@/pages/applications";
 
 function Router() {

@@ -86,6 +86,12 @@ export function Header() {
                   </div>
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator />
+                <DropdownMenuItem asChild>
+                  <Link href={`/users/${user.id}`} className="cursor-pointer" data-testid="button-view-profile">
+                    <User className="h-4 w-4 mr-2" />
+                    View Profile
+                  </Link>
+                </DropdownMenuItem>
                 <DropdownMenuItem onClick={handleLogout} data-testid="button-logout">
                   <LogOut className="h-4 w-4 mr-2" />
                   Logout
