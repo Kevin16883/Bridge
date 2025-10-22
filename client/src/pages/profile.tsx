@@ -11,6 +11,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Link } from "wouter";
 import { 
   User, 
   MapPin, 
@@ -26,7 +28,10 @@ import {
   Award,
   Bookmark,
   Eye,
-  MessageSquare
+  MessageSquare,
+  UserPlus,
+  UserMinus,
+  Lock
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
@@ -44,6 +49,7 @@ interface UserProfile {
   skills: string[] | null;
   rating: number;
   createdAt: string;
+  isProfilePublic?: number;
 }
 
 interface Task {
@@ -88,6 +94,10 @@ export default function Profile() {
   const userId = params?.id;
   const { toast } = useToast();
   const [isEditing, setIsEditing] = useState(false);
+  const [isRatingDialogOpen, setIsRatingDialogOpen] = useState(false);
+  const [selectedRating, setSelectedRating] = useState(0);
+  const [hoverRating, setHoverRating] = useState(0);
+  const [ratingComment, setRatingComment] = useState("");
   const [formData, setFormData] = useState({
     avatar: "",
     bio: "",
@@ -105,25 +115,47 @@ export default function Profile() {
     queryKey: [`/api/users/${userId}`],
     enabled: !!userId,
   });
+  
+  const isOwnProfile = currentUser?.id === userId;
 
   const { data: projects } = useQuery<Project[]>({
     queryKey: ["/api/projects"],
-    enabled: user?.role === "provider" && currentUser?.id === userId,
+    enabled: user?.role === "provider" && isOwnProfile,
   });
 
   const { data: performerStats } = useQuery<any>({
     queryKey: ["/api/performer/stats"],
-    enabled: user?.role === "performer" && currentUser?.id === userId,
+    enabled: user?.role === "performer" && isOwnProfile,
   });
   
   const { data: savedQuestions = [] } = useQuery<SavedQuestion[]>({
     queryKey: ["/api/saved-questions"],
-    enabled: !!currentUser && currentUser.id === userId,
+    enabled: !!currentUser && isOwnProfile,
   });
   
   const { data: following = [] } = useQuery<FollowingUser[]>({
     queryKey: ["/api/following"],
-    enabled: !!currentUser && currentUser.id === userId,
+    enabled: !!currentUser && isOwnProfile,
+  });
+  
+  const { data: stats } = useQuery<{ followersCount: number; followingCount: number }>({
+    queryKey: [`/api/users/${userId}/stats`],
+    enabled: !!userId && !isOwnProfile,
+  });
+  
+  const { data: ratingData } = useQuery<{ averageRating: number; ratingCount: number }>({
+    queryKey: [`/api/users/${userId}/rating`],
+    enabled: !!userId && !isOwnProfile,
+  });
+  
+  const { data: userTasks = [] } = useQuery<Task[]>({
+    queryKey: [`/api/users/${userId}/tasks`],
+    enabled: !!userId && !isOwnProfile,
+  });
+  
+  const { data: isFollowing } = useQuery<{ isFollowing: boolean }>({
+    queryKey: [`/api/users/${userId}/is-following`],
+    enabled: !!userId && !isOwnProfile && !!currentUser,
   });
   
   const togglePrivacyMutation = useMutation({
@@ -168,8 +200,71 @@ export default function Profile() {
       });
     },
   });
-
-  const isOwnProfile = currentUser?.id === userId;
+  
+  const followMutation = useMutation({
+    mutationFn: async () => {
+      return await apiRequest("POST", `/api/users/${userId}/follow`, {});
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [`/api/users/${userId}/is-following`] });
+      queryClient.invalidateQueries({ queryKey: [`/api/users/${userId}/stats`] });
+      toast({
+        title: "Success",
+        description: "User followed successfully",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to follow user",
+        variant: "destructive",
+      });
+    },
+  });
+  
+  const unfollowMutation = useMutation({
+    mutationFn: async () => {
+      return await apiRequest("DELETE", `/api/users/${userId}/follow`, {});
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [`/api/users/${userId}/is-following`] });
+      queryClient.invalidateQueries({ queryKey: [`/api/users/${userId}/stats`] });
+      toast({
+        title: "Success",
+        description: "User unfollowed successfully",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to unfollow user",
+        variant: "destructive",
+      });
+    },
+  });
+  
+  const rateMutation = useMutation({
+    mutationFn: async (data: { rating: number; comment: string }) => {
+      return await apiRequest("POST", `/api/users/${userId}/rate`, data);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [`/api/users/${userId}/rating`] });
+      setIsRatingDialogOpen(false);
+      setSelectedRating(0);
+      setRatingComment("");
+      toast({
+        title: "Success",
+        description: "Rating submitted successfully",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to submit rating",
+        variant: "destructive",
+      });
+    },
+  });
 
   const handleEdit = () => {
     if (user) {
@@ -191,6 +286,26 @@ export default function Profile() {
 
   const handleCancel = () => {
     setIsEditing(false);
+  };
+  
+  const handleFollow = () => {
+    if (isFollowing?.isFollowing) {
+      unfollowMutation.mutate();
+    } else {
+      followMutation.mutate();
+    }
+  };
+  
+  const handleRateSubmit = () => {
+    if (selectedRating === 0) {
+      toast({
+        title: "Error",
+        description: "Please select a rating",
+        variant: "destructive",
+      });
+      return;
+    }
+    rateMutation.mutate({ rating: selectedRating, comment: ratingComment });
   };
 
   if (isLoading) {
@@ -637,6 +752,209 @@ export default function Profile() {
               </Card>
             </TabsContent>
           </Tabs>
+        )}
+        
+        {!isOwnProfile && currentUser && (
+          <div className="grid lg:grid-cols-3 gap-6">
+            <div className="lg:col-span-1 space-y-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Actions</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-2">
+                  <Button 
+                    className="w-full" 
+                    variant={isFollowing?.isFollowing ? "outline" : "default"}
+                    onClick={handleFollow}
+                    disabled={followMutation.isPending || unfollowMutation.isPending}
+                    data-testid="button-follow"
+                  >
+                    {isFollowing?.isFollowing ? (
+                      <>
+                        <UserMinus className="w-4 h-4 mr-2" />
+                        Unfollow
+                      </>
+                    ) : (
+                      <>
+                        <UserPlus className="w-4 h-4 mr-2" />
+                        Follow
+                      </>
+                    )}
+                  </Button>
+                  <Link href={`/messages?user=${userId}`}>
+                    <Button className="w-full" variant="outline" data-testid="button-message">
+                      <Mail className="w-4 h-4 mr-2" />
+                      Send Message
+                    </Button>
+                  </Link>
+                </CardContent>
+              </Card>
+              
+              <Card>
+                <CardHeader>
+                  <CardTitle>Stats</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-muted-foreground">Followers</span>
+                    <span className="font-semibold" data-testid="followers-count">{stats?.followersCount || 0}</span>
+                  </div>
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-muted-foreground">Following</span>
+                    <span className="font-semibold" data-testid="following-count">{stats?.followingCount || 0}</span>
+                  </div>
+                </CardContent>
+              </Card>
+              
+              <Card>
+                <CardHeader>
+                  <CardTitle>Rating</CardTitle>
+                  <CardDescription>User rating & reviews</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-muted-foreground">Average Rating</span>
+                    <div className="flex items-center gap-1">
+                      <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
+                      <span className="font-semibold">{ratingData?.averageRating?.toFixed(1) || 0}</span>
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-muted-foreground">Total Reviews</span>
+                    <span className="font-semibold">{ratingData?.ratingCount || 0}</span>
+                  </div>
+                  
+                  <Dialog open={isRatingDialogOpen} onOpenChange={setIsRatingDialogOpen}>
+                    <DialogTrigger asChild>
+                      <Button className="w-full mt-2" variant="outline" data-testid="button-rate-user">
+                        <Star className="w-4 h-4 mr-2" />
+                        Rate User
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent>
+                      <DialogHeader>
+                        <DialogTitle>Rate {user?.username}</DialogTitle>
+                        <DialogDescription>
+                          Share your experience working with this user
+                        </DialogDescription>
+                      </DialogHeader>
+                      <div className="space-y-4 py-4">
+                        <div className="flex justify-center gap-2">
+                          {[1, 2, 3, 4, 5].map((rating) => (
+                            <Button
+                              key={rating}
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              className="h-12 w-12"
+                              onClick={() => setSelectedRating(rating)}
+                              onMouseEnter={() => setHoverRating(rating)}
+                              onMouseLeave={() => setHoverRating(0)}
+                              data-testid={`star-${rating}`}
+                            >
+                              <Star 
+                                className={`w-8 h-8 ${
+                                  rating <= (hoverRating || selectedRating) 
+                                    ? 'fill-yellow-400 text-yellow-400' 
+                                    : 'text-muted-foreground'
+                                }`}
+                              />
+                            </Button>
+                          ))}
+                        </div>
+                        <div>
+                          <label className="text-sm font-medium">Comment (optional)</label>
+                          <Textarea
+                            value={ratingComment}
+                            onChange={(e) => setRatingComment(e.target.value)}
+                            placeholder="Share your experience..."
+                            rows={3}
+                            data-testid="textarea-rating-comment"
+                          />
+                        </div>
+                      </div>
+                      <div className="flex gap-2 justify-end">
+                        <Button 
+                          variant="outline" 
+                          onClick={() => {
+                            setIsRatingDialogOpen(false);
+                            setSelectedRating(0);
+                            setRatingComment("");
+                          }}
+                          data-testid="button-cancel-rating"
+                        >
+                          Cancel
+                        </Button>
+                        <Button 
+                          onClick={handleRateSubmit}
+                          disabled={rateMutation.isPending}
+                          data-testid="button-submit-rating"
+                        >
+                          Submit Rating
+                        </Button>
+                      </div>
+                    </DialogContent>
+                  </Dialog>
+                </CardContent>
+              </Card>
+            </div>
+            
+            <div className="lg:col-span-2">
+              <Card>
+                <CardHeader>
+                  <CardTitle>
+                    {user?.role === "provider" ? "Tasks Published" : "Tasks Completed"}
+                  </CardTitle>
+                  <CardDescription>
+                    {user?.role === "provider" 
+                      ? "Tasks created by this provider" 
+                      : "Tasks completed by this performer"
+                    }
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {userTasks.length === 0 ? (
+                    <p className="text-muted-foreground text-center py-8">
+                      No tasks to display
+                    </p>
+                  ) : (
+                    <div className="grid gap-4">
+                      {userTasks.map((task) => (
+                        <Card key={task.id} className="hover-elevate" data-testid={`task-${task.id}`}>
+                          <CardHeader>
+                            <div className="flex items-start justify-between">
+                              <div className="flex-1">
+                                <CardTitle className="text-base">{task.title}</CardTitle>
+                                <CardDescription className="mt-1">
+                                  {task.description}
+                                </CardDescription>
+                              </div>
+                              <Badge variant={task.status === "open" ? "default" : "secondary"}>
+                                {task.status}
+                              </Badge>
+                            </div>
+                          </CardHeader>
+                          <CardContent>
+                            <div className="flex flex-wrap gap-2">
+                              {task.skills?.map((skill) => (
+                                <Badge key={skill} variant="outline" className="text-xs">
+                                  {skill}
+                                </Badge>
+                              ))}
+                            </div>
+                            <div className="flex items-center justify-between mt-3 text-sm text-muted-foreground">
+                              <span>Budget: {task.budget}</span>
+                              <span>Difficulty: {task.difficulty}</span>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      ))}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
+          </div>
         )}
       </div>
     </div>
