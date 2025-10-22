@@ -10,9 +10,17 @@ The system serves two primary user personas:
 
 ## Recent Changes (October 22, 2025)
 
+**Session 2 - Q&A Community Fixes and Navigation Refactor**
+- Fixed Q&A Community questions not displaying by implementing full storage layer and API endpoints
+- Added `createQuestion()`, `getQuestion()`, `getAllQuestions()`, `incrementQuestionViews()` storage methods
+- Added Questions API routes: GET /api/questions, GET /api/questions/:id, POST /api/questions
+- Refactored Tasks page (/tasks) to use Tabs component consolidating Browse Tasks and My Applications
+- Removed standalone "My Applications" header link - now integrated as tab in Tasks page
+- Both tabs retain search/filter functionality with improved UX
+
 **Critical Bug Fix - Task Visibility**
 - Fixed `getAvailableTasks()` method to properly filter available tasks
-- Now correctly checks both `status="pending"` AND `matchedPerformerId IS NULL`
+- Changed from incorrect `eq(tasks.matchedPerformerId, null)` to proper `isNull(tasks.matchedPerformerId)`
 - Performers can now see Provider's published tasks on the Tasks page
 
 **New Features - Applications Management**
