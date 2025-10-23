@@ -39,6 +39,14 @@ export default function TaskDetail() {
     enabled: !!id && !!task,
   });
 
+  // Check if user has already applied for this task
+  const { data: userApplications } = useQuery<any[]>({
+    queryKey: ["/api/performer/applications"],
+    enabled: !!id,
+  });
+
+  const hasApplied = userApplications?.some(app => app.taskId === id);
+
   const form = useForm<SubmissionFormData>({
     resolver: zodResolver(submissionFormSchema),
     defaultValues: {
@@ -82,6 +90,7 @@ export default function TaskDetail() {
       });
       queryClient.invalidateQueries({ queryKey: ["/api/tasks", id] });
       queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/performer/applications"] });
     },
     onError: (error: Error) => {
       toast({
@@ -215,7 +224,7 @@ export default function TaskDetail() {
           </CardHeader>
           
           {/* Apply for Task Button - for pending, unassigned tasks */}
-          {task.status === "pending" && !task.matchedPerformerId && (
+          {task.status === "pending" && !task.matchedPerformerId && !hasApplied && (
             <CardContent className="pt-0">
               <Button
                 onClick={() => applyMutation.mutate()}

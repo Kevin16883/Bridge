@@ -1,5 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { ArrowRight, Sparkles, Target } from "lucide-react";
+import { Link } from "wouter";
 import heroImage from "@assets/generated_images/Hero_network_connection_visual_0af33954.png";
 
 export function HeroSection() {
@@ -32,29 +33,18 @@ export function HeroSection() {
           </p>
           
           <div className="flex flex-col sm:flex-row gap-4">
-            <Button size="lg" className="text-base" data-testid="button-post-demand">
-              <Target className="mr-2 h-5 w-5" />
-              Post Demand
-            </Button>
-            <Button size="lg" variant="outline" className="text-base bg-background/50 backdrop-blur" data-testid="button-build-potential">
-              Build Potential
-              <ArrowRight className="ml-2 h-5 w-5" />
-            </Button>
-          </div>
-          
-          <div className="flex items-center gap-8 mt-12 text-sm text-muted-foreground">
-            <div>
-              <div className="text-2xl font-bold text-foreground">10,000+</div>
-              <div>Tasks Completed</div>
-            </div>
-            <div>
-              <div className="text-2xl font-bold text-foreground">5,000+</div>
-              <div>Successful Matches</div>
-            </div>
-            <div>
-              <div className="text-2xl font-bold text-foreground">50+</div>
-              <div>Skill Dimensions</div>
-            </div>
+            <Link href="/create-demand">
+              <Button size="lg" className="text-base w-full sm:w-auto" data-testid="button-post-demand">
+                <Target className="mr-2 h-5 w-5" />
+                Post Demand
+              </Button>
+            </Link>
+            <Link href="/auth">
+              <Button size="lg" variant="outline" className="text-base bg-background/50 backdrop-blur w-full sm:w-auto" data-testid="button-build-potential">
+                Build Potential
+                <ArrowRight className="ml-2 h-5 w-5" />
+              </Button>
+            </Link>
           </div>
         </div>
       </div>
