@@ -30,7 +30,7 @@ export default function Home() {
                 </div>
                 <CardTitle className="text-2xl">Demand Provider</CardTitle>
               </CardHeader>
-              <CardContent className="space-y-4">
+              <CardContent className="space-y-6">
                 <p className="text-muted-foreground">
                   Describe your demand in one sentence, AI helps break down tasks and precisely match the most suitable talent
                 </p>
@@ -48,7 +48,7 @@ export default function Home() {
                     <span>Precise talent matching</span>
                   </li>
                 </ul>
-                <Link href="/auth">
+                <Link href="/create-demand" className="block">
                   <Button className="w-full" data-testid="button-start-as-provider">
                     Post Demand
                     <ArrowRight className="ml-2 h-4 w-4" />
@@ -64,7 +64,7 @@ export default function Home() {
                 </div>
                 <CardTitle className="text-2xl">Task Performer</CardTitle>
               </CardHeader>
-              <CardContent className="space-y-4">
+              <CardContent className="space-y-6">
                 <p className="text-muted-foreground">
                   Complete capability challenges, build potential profile, receive precisely matched task opportunities
                 </p>
@@ -82,7 +82,7 @@ export default function Home() {
                     <span>Receive matched tasks</span>
                   </li>
                 </ul>
-                <Link href="/auth">
+                <Link href="/auth" className="block">
                   <Button className="w-full" data-testid="button-start-as-performer">
                     Start Challenge
                     <ArrowRight className="ml-2 h-4 w-4" />
