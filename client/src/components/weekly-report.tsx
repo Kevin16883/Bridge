@@ -37,9 +37,7 @@ export function WeeklyReportViewer() {
   
   const generateMutation = useMutation({
     mutationFn: async () => {
-      return await apiRequest("/api/weekly-reports/generate", {
-        method: "POST",
-      });
+      return await apiRequest("POST", "/api/weekly-reports/generate", {});
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/weekly-reports/latest"] });

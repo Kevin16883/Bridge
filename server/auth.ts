@@ -7,6 +7,7 @@ import { promisify } from "util";
 import { storage } from "./storage";
 import { User as SelectUser, insertUserSchema } from "@shared/schema";
 import { z } from "zod";
+import { format } from "date-fns";
 
 const loginSchema = z.object({
   username: z.string().min(3, "Username must be at least 3 characters"),
@@ -101,8 +102,21 @@ export function setupAuth(app: Express) {
         password: await hashPassword(validatedData.password),
       });
 
-      req.login(user, (err) => {
+      req.login(user, async (err) => {
         if (err) return next(err);
+        
+        // Record login activity
+        try {
+          await storage.recordActivity({
+            userId: user.id,
+            activityType: "login",
+            activityDate: format(new Date(), 'yyyy-MM-dd'),
+            duration: 5,
+          });
+        } catch (activityError) {
+          console.error("Failed to record login activity:", activityError);
+        }
+        
         res.status(201).json(toSafeUser(user));
       });
     } catch (error) {
@@ -123,8 +137,21 @@ export function setupAuth(app: Express) {
           return res.status(401).json({ error: "Invalid username or password" });
         }
         
-        req.login(user, (err) => {
+        req.login(user, async (err) => {
           if (err) return next(err);
+          
+          // Record login activity
+          try {
+            await storage.recordActivity({
+              userId: user.id,
+              activityType: "login",
+              activityDate: format(new Date(), 'yyyy-MM-dd'),
+              duration: 5,
+            });
+          } catch (activityError) {
+            console.error("Failed to record login activity:", activityError);
+          }
+          
           res.status(200).json(toSafeUser(user));
         });
       })(req, res, next);
