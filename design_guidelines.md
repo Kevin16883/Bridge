@@ -1,166 +1,186 @@
-# Bridge Platform - Design Guidelines
+# Bridge Platform - Soft UI Design Guidelines
 
-## Design Approach
-**Reference-Based**: Drawing inspiration from Linear (modern task management), Tinder (matching UX), and Notion (dynamic cards), creating a professional yet approachable platform that builds trust while maintaining engagement.
+## 设计理念
+**Soft UI 风格**：参考现代极简美学，创建一个低饱和度、大留白、模块化布局、轻量化交互的平台。旨在让用户在使用过程中感到专业、放松、无压力。
 
-## Core Design Principles
-1. **Clarity in Complexity**: Transform complex AI-driven matching into intuitive visual interfaces
-2. **Trust Through Transparency**: Every AI decision should be visually explained
-3. **Progressive Disclosure**: Show depth only when needed, keep surfaces clean
-4. **Dual Persona Balance**: Serve both demand providers and task performers with cohesive design
-
----
-
-## Color Palette
-
-**Primary Colors**:
-- Brand Primary (Dark): `245 85% 55%` - Vibrant teal-blue conveying innovation and trust
-- Brand Primary (Light): `245 75% 65%`
-
-**Accent Colors**:
-- Success/Match: `155 70% 50%` - Fresh green for successful matches
-- Warning/Learning: `35 90% 60%` - Warm orange for growth opportunities
-- Neutral/Professional: `220 15% 50%` - Balanced gray-blue
-
-**Dark Mode** (Primary):
-- Background: `220 20% 8%`
-- Surface: `220 18% 12%`
-- Surface Elevated: `220 16% 16%`
-- Text Primary: `220 10% 95%`
-- Text Secondary: `220 8% 70%`
-
-**Light Mode**:
-- Background: `220 15% 98%`
-- Surface: `0 0% 100%`
-- Surface Elevated: `220 20% 96%`
+## 核心设计原则
+1. **视觉舒适优先**：每个元素都优先考虑视觉舒适度，使用低饱和度和充足的间距
+2. **呼吸空间**：留白不是空白——它是有意的视觉缓冲，引导注意力
+3. **柔和层次**：使用细微的尺寸和权重差异，而非强烈的颜色对比
+4. **模块化清晰**：基于卡片的布局创建心理隔离，避免视觉负担
+5. **轻松交互**：轻量级的反馈，确认而不强求关注
 
 ---
 
-## Typography
+## 配色方案
 
-**Font Families**:
-- Primary: Inter (clean, modern, excellent readability)
-- Monospace: JetBrains Mono (for task codes, challenge scores)
+### 浅色模式（主要模式）
 
-**Scale**:
-- Hero: 4xl-6xl (48-60px) font-bold
-- H1: 3xl-4xl (36-48px) font-semibold
-- H2: 2xl-3xl (24-36px) font-semibold
-- H3: xl (20px) font-medium
-- Body: base (16px) font-normal
-- Small: sm (14px) font-normal
-- Micro: xs (12px) font-medium
+**主要中性色**：
+- 背景色: `40 25% 96%` - 柔和的米色/奶油色
+- 卡片表面: `0 0% 100%` - 纯白色，用于对比
+- 文本主色: `220 10% 30%` - 柔和的炭灰色，绝不使用纯黑
+- 文本次要色: `220 8% 52%` - 中等灰色，用于辅助文本
+- 边框颜色: `220 8% 88%` - 几乎看不见的分隔线
 
----
+**强调色（低饱和度）**：
+- 主要强调色: `200 25% 65%` - 柔和的青蓝色，用于CTA
+- 成功色: `140 25% 70%` - 柔和的鼠尾草绿
+- 警告色: `35 30% 72%` - 温和的琥珀色
+- 侧边栏背景: `200 20% 85%` - 柔和的蓝灰色（如参考图片）
 
-## Layout System
+### 深色模式
 
-**Spacing Primitives**: Use Tailwind units of `2, 4, 6, 8, 12, 16, 20, 24` for consistent rhythm
-- Component padding: `p-4` to `p-8`
-- Section spacing: `py-12` to `py-24`
-- Card gaps: `gap-6` to `gap-8`
+**主要中性色**：
+- 背景色: `220 15% 12%` - 深炭灰色
+- 卡片表面: `220 12% 16%` - 略微提升的表面
+- 文本主色: `220 8% 92%` - 柔和的浅色
+- 文本次要色: `220 8% 68%` - 中等灰色
 
-**Grid System**:
-- Desktop: 12-column grid, max-w-7xl container
-- Dashboard layouts: Sidebar (256px fixed) + Main content (flex-1)
-- Card grids: `grid-cols-1 md:grid-cols-2 lg:grid-cols-3`
-
----
-
-## Component Library
-
-### Navigation
-- **Top Nav**: Fixed header, backdrop blur, minimal height (64px), logo left, user profile right
-- **Side Nav** (Dashboard): Fixed sidebar, collapsible on mobile, icon + label pattern
-- **Breadcrumbs**: For task hierarchies and multi-step flows
-
-### Cards & Containers
-- **Task Cards**: Rounded borders (rounded-xl), subtle shadow, hover lift effect (translate-y-1)
-- **Challenge Cards**: Highlighted border on active, timer badge in corner
-- **Match Cards**: Tinder-style swipeable on mobile, grid on desktop, large avatar/icon
-- **Micro-task Tiles**: Compact chips with skill tags, estimated time, difficulty indicator
-
-### Data Visualization
-- **Potential Graph**: Radar chart showing multi-dimensional capability scores
-- **Task Breakdown Tree**: Hierarchical flow diagram from main need to micro-tasks
-- **Progress Indicators**: Circular progress for challenges, linear for task completion
-- **Skill Tags**: Pill-shaped, color-coded by category (logic=blue, creative=purple, technical=green)
-
-### Forms & Inputs
-- **Demand Input**: Large textarea with AI suggestion helper below
-- **Challenge Interface**: Full-screen modal with timer, question area, answer input
-- **File Upload**: Drag-drop zone with preview thumbnails
-
-### Buttons & CTAs
-- **Primary**: bg-primary text-white, rounded-lg, px-6 py-3
-- **Secondary**: border-2 border-primary text-primary, same padding
-- **Ghost**: text-primary hover:bg-primary/10
-- **Icon Buttons**: Square (40x40px), rounded-lg, centered icon
-
-### Overlays
-- **Modals**: Centered, max-w-2xl, rounded-2xl, backdrop-blur background
-- **Toasts**: Top-right, auto-dismiss, icon + message pattern
-- **Tooltips**: Small, dark background, appear on hover with 200ms delay
+**强调色（深色模式）**：
+- 主要强调色: `200 30% 60%` - 略微提亮的青蓝色
+- 成功色: `140 28% 58%` - 柔和的绿色
+- 警告色: `35 35% 65%` - 温和的琥珀色
 
 ---
 
-## Key Interface Patterns
+## 字体设计
 
-### Landing Page
-- **Hero**: Full-width split layout - left side with headline + CTA, right side with animated matching visualization
-- **How It Works**: 3-step horizontal timeline with icons and descriptions
-- **Live Stats**: Animated counter showing tasks completed, matches made, skills assessed
-- **Dual CTA**: Separate entry points for "Post a Need" vs "Build Your Potential"
+**字体系列**: Inter（Google Fonts CDN）
 
-### Demand Provider Dashboard
-- **Quick Post**: Prominent natural language input at top
-- **Active Projects**: Kanban-style board showing task status
-- **AI Breakdown Preview**: Expandable cards showing how AI parsed their needs
-- **Matched Talents**: Grid of potential graph previews with match % scores
+**层级结构**（柔和的字重）：
+- Hero: `text-5xl md:text-6xl font-light tracking-tight` - 超轻字重，用于着陆页冲击力
+- H1: `text-4xl font-normal` - 主要章节标题
+- H2: `text-2xl font-normal` - 子章节标题
+- H3: `text-xl font-normal` - 卡片标题
+- 正文: `text-base font-normal` - 主要内容
+- 小号: `text-sm font-normal` - 辅助文本
+- 微型: `text-xs font-normal tracking-wide uppercase` - 标签
 
-### Task Performer Dashboard  
-- **Potential Overview**: Circular stat display showing overall score + breakdown
-- **Recommended Tasks**: Card grid with "Why this matches you" AI explanation
-- **Challenge Library**: Filterable grid of available skill assessments
-- **Achievements**: Badge collection showing completed challenges and verified skills
-
-### Challenge Experience
-- **Fullscreen Focus Mode**: Minimal distractions, timer always visible
-- **Question Display**: Large, readable text with code syntax highlighting if needed
-- **Multi-step Progress**: Dot indicators for multi-question challenges
-- **Instant Feedback**: Animated success/failure states with score breakdown
+**阅读舒适度**：
+- 行高: `leading-relaxed` (1.625) 用于正文
+- 字母间距: `tracking-wide` 用于小型大写字母标签
+- 段落间距: `space-y-4` 实现自然流动
 
 ---
 
-## Images & Media
+## 布局系统
 
-**Hero Section**: Use high-quality abstract imagery showing connection/network patterns, or diverse individuals collaborating. Style: modern, bright, slightly abstract
+**慷慨的间距**: Tailwind 单位 `4, 6, 8, 12, 16, 20, 24, 32`
+- 卡片内边距: `p-8` 到 `p-12` (比标准更多呼吸空间)
+- 章节间距: `py-20` 到 `py-32` (桌面), `py-12` 到 `py-16` (移动端)
+- 组件间隙: `gap-8` 到 `gap-12`
+- 内容最大宽度: `max-w-6xl` 居中，使用 `mx-auto`
 
-**Dashboard Illustrations**: Empty states use friendly, minimal illustrations (unDraw style) encouraging action
-
-**User Avatars**: Circular, 40px-120px depending on context, fallback to colorful initial badges
-
-**Icons**: Heroicons (outline for nav, solid for emphasis), 20px-24px standard size
-
----
-
-## Animation Guidelines
-
-**Minimal but Meaningful**:
-- Card hover: Subtle lift (4px) with shadow increase, 150ms ease-out
-- Page transitions: Fade + slight slide (20px), 200ms
-- Loading states: Skeleton screens, no spinners unless necessary
-- Matching animation: Brief confetti burst on successful match (particles.js)
-- Challenge completion: Scale + checkmark animation, 300ms
-
-**No Animations**: Background gradients, scrolling effects, parallax - keep it clean and performant
+**网格系统**：
+- 仪表板: 侧边栏 `280px` + 主内容区域 `px-8 lg:px-16`
+- 卡片网格: `grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8`
+- 始终保持一致的外边距: `px-6 md:px-12 lg:px-20`
 
 ---
 
-## Accessibility & Responsiveness
+## 组件库
 
-- Maintain WCAG AA contrast ratios in both modes
-- All interactive elements minimum 44x44px touch target
-- Keyboard navigation with visible focus states (2px ring)
-- Responsive breakpoints: sm(640px), md(768px), lg(1024px), xl(1280px)
-- Mobile-first: Stack cards vertically, collapsible navigation, larger touch areas
+### 卡片和容器
+- **基础卡片**: `bg-white rounded-3xl p-8 border border-card-border shadow-sm`
+- **任务卡片**: 大内边距 `p-10`，最小化信息密度，单焦点
+- **嵌套卡片**: 主卡片内使用稍深背景 `bg-gray-50` 创建层次
+- **悬停状态**: 细微的边框颜色转换，无阴影变化
+
+### 导航
+- **顶部导航**: 超级简约，`h-20`，透明背景带浅色底边框，无阴影
+- **侧边栏**: 固定 `w-280px`，慷慨的垂直间距 `space-y-2`，图标+标签 `gap-4`
+- **面包屑**: 柔和的灰色文本，人字形分隔符，最小样式
+
+### 按钮和交互元素
+- **主要按钮**: `bg-primary text-white rounded-full px-6 py-2.5 font-normal shadow-sm` - 胶囊形状
+- **次要按钮**: `border border-input text-foreground rounded-full px-6 py-2.5`
+- **幽灵按钮**: `text-primary hover:bg-gray-50 rounded-full px-5 py-2`
+- **图标按钮**: `44x44px` 最小，`rounded-xl`，居中图标，细微的悬停背景
+
+### 数据展示
+- **技能标签**: `bg-gray-100 text-gray-600 rounded-full px-3 py-1 text-xs` - 无强烈颜色
+- **统计显示**: 大数字 `text-4xl font-light`，下方小标签 `text-xs uppercase tracking-wide text-gray-500`
+- **进度指示器**: 细圈（4px 宽），柔和的强调色，大中心数字 `text-3xl font-light`
+
+### 表单和输入
+- **文本输入**: `border border-input rounded-xl px-5 py-3 h-11 focus:border-ring focus:ring-2 focus:ring-ring/20`
+- **文本区域**: 相同样式，慷慨的 `p-5`，`min-h-[120px]`
+- **文件上传**: 大拖放区域 `min-h-[240px]`，虚线边框，悬停时细微背景
+
+### 叠加层
+- **模态框**: `max-w-2xl rounded-3xl p-12`，柔和的背景 `bg-gray-900/20 backdrop-blur-sm`
+- **提示框**: 右上角，最小图标，柔和背景 `bg-white shadow-xl border`，自动消失
+- **工具提示**: 延迟(300ms)，小巧，柔和阴影，max-w-xs
+
+---
+
+## 关键界面模式
+
+### 着陆页
+- **Hero 区域**: 米色背景，大标题使用 `font-light`，柔和的青蓝色CTA按钮
+- **三栏"工作原理"**: 图标在上，短标题，2行描述，慷慨的 `gap-16`
+- **实时统计**: 居中，最小设计，动画计数器，统计之间的柔和分隔线
+
+### 需求提供者仪表板
+- **快速发布卡片**: 顶部突出，`p-12`，大文本区域，柔和灰色的AI辅助文本
+- **项目概览**: 柔和列背景的看板，带最小边框的卡片
+- **任务分解**: 可展开的树状视图，柔和的连接线，嵌套卡片模式
+
+### 任务执行者仪表板
+- **潜力英雄**: 大圆形图表居中，周围柔和灰色卡片中的统计数据
+- **推荐任务**: 2列网格（桌面），每张卡片显示一个任务，留白充足
+- **进度时间线**: 垂直时间线，柔和的点和连接线，完成徽章
+
+---
+
+## 图片和媒体
+
+**Hero 区域**: 使用柔和光线的高质量协作空间或抽象连接图案。风格：自然光线，去饱和色调，最小对比。
+
+**仪表板空状态**: 使用柔和强调色的最小线条插图，插图周围慷慨的留白。
+
+**用户头像**: 圆形，56px-96px，柔和阴影，后备为带首字母的渐变背景。
+
+**图标**: Heroicons（仅轮廓），24px，谨慎使用，柔和的描边颜色匹配次要文本。
+
+---
+
+## 动画指南
+
+**超级最小化**：
+- 卡片悬停: 仅细微的边框颜色转换，200ms 缓动
+- 页面转换: 温和的淡入淡出（无滑动），250ms
+- 加载: 柔和的脉冲骨架屏，避免旋转器
+- 成功状态: 温和的缩放 (1.02x) 带柔和的对勾淡入，300ms
+- **无动画**: 悬停提升、阴影、视差、背景效果
+
+---
+
+## 无障碍性和响应式
+
+- 通过文本权重和大小（而非仅颜色对比）保持 WCAG AA
+- 所有触摸目标: 最小 44x44px，可见的点击反馈（细微的背景变化）
+- 焦点状态: 2px 柔和强调色环，4px 偏移
+- 响应式: 移动优先堆叠，在更大屏幕上增加内边距，在所有断点保持呼吸空间
+- 减少动画: 尊重 `prefers-reduced-motion`，禁用所有动画
+
+---
+
+## 设计关键词
+
+**使用**: 柔和、温和、轻盈、呼吸、舒适、放松、清晰、模块化、简约
+**避免**: 大胆、鲜艳、紧凑、密集、强烈、对比、动态、复杂
+
+---
+
+## 实现细节
+
+- 所有按钮使用 `rounded-full`（胶囊形状）
+- 所有卡片使用 `rounded-3xl`（大圆角）
+- 所有输入使用 `rounded-xl`（中圆角）
+- 图标按钮使用 `rounded-xl`（保持可识别性）
+- 徽章使用 `rounded-full`（胶囊形状）
+- 阴影极其柔和（几乎不可见）
+- 字体权重: 主要使用 `font-normal` 和 `font-light`
+- 过渡: 所有交互元素添加 `transition-all duration-200`
