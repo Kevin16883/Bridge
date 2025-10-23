@@ -90,6 +90,7 @@ export default function QuestionDetail() {
       return await apiRequest("POST", `/api/questions/${questionId}/save`, {});
     },
     onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/saved-questions"] });
       toast({
         title: "Success",
         description: "Question saved to your collection",

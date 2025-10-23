@@ -1226,11 +1226,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "Rating must be between 1 and 5" });
       }
       
-      if (!taskId) {
-        return res.status(400).json({ error: "Task ID is required" });
-      }
-      
-      await storage.rateUser(req.params.id, req.user!.id, taskId, rating, comment);
+      await storage.rateUser(req.params.id, req.user!.id, taskId || null, rating, comment);
       res.json({ message: "Rating submitted successfully" });
     } catch (error) {
       next(error);

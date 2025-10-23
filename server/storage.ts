@@ -114,7 +114,7 @@ export interface IStorage {
   updateProfilePrivacy(userId: string, isPublic: boolean): Promise<void>;
   
   // User rating operations
-  rateUser(ratedUserId: string, raterUserId: string, taskId: string, rating: number, comment?: string): Promise<void>;
+  rateUser(ratedUserId: string, raterUserId: string, taskId: string | null, rating: number, comment?: string): Promise<void>;
   getUserAverageRating(userId: string): Promise<number>;
   getUserRatingCount(userId: string): Promise<number>;
   
@@ -366,7 +366,7 @@ export class DatabaseStorage implements IStorage {
       performer: {
         id: r.users!.id,
         username: r.users!.username,
-        rating: r.users!.rating
+        rating: r.users!.rating || 0
       }
     }));
   }
@@ -626,11 +626,11 @@ export class DatabaseStorage implements IStorage {
   }
   
   // User rating operations
-  async rateUser(ratedUserId: string, raterUserId: string, taskId: string, rating: number, comment?: string): Promise<void> {
+  async rateUser(ratedUserId: string, raterUserId: string, taskId: string | null, rating: number, comment?: string): Promise<void> {
     await db.insert(userRatings).values({
       ratedUserId,
       raterUserId,
-      taskId,
+      taskId: taskId || null,
       rating,
       comment: comment || null,
     });

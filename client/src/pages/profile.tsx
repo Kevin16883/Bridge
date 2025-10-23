@@ -219,6 +219,7 @@ export default function Profile() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [`/api/users/${userId}/is-following`] });
       queryClient.invalidateQueries({ queryKey: [`/api/users/${userId}/stats`] });
+      queryClient.invalidateQueries({ queryKey: ["/api/following"] });
       toast({
         title: "Success",
         description: "User followed successfully",
@@ -240,6 +241,7 @@ export default function Profile() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [`/api/users/${userId}/is-following`] });
       queryClient.invalidateQueries({ queryKey: [`/api/users/${userId}/stats`] });
+      queryClient.invalidateQueries({ queryKey: ["/api/following"] });
       toast({
         title: "Success",
         description: "User unfollowed successfully",

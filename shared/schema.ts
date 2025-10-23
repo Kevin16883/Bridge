@@ -347,7 +347,7 @@ export const userRatings = pgTable("user_ratings", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   ratedUserId: varchar("rated_user_id").notNull().references(() => users.id),
   raterUserId: varchar("rater_user_id").notNull().references(() => users.id),
-  taskId: varchar("task_id").notNull().references(() => tasks.id),
+  taskId: varchar("task_id").references(() => tasks.id),
   rating: integer("rating").notNull(),
   comment: text("comment"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
