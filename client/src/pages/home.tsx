@@ -82,7 +82,7 @@ export default function Home() {
                     <span>Receive matched tasks</span>
                   </li>
                 </ul>
-                <Link href="/auth" className="block">
+                <Link href="/tasks" className="block">
                   <Button className="w-full" data-testid="button-start-as-performer">
                     Start Challenge
                     <ArrowRight className="ml-2 h-4 w-4" />

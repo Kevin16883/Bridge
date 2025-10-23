@@ -39,7 +39,7 @@ export function HeroSection() {
                 Post Demand
               </Button>
             </Link>
-            <Link href="/auth">
+            <Link href="/tasks">
               <Button size="lg" variant="outline" className="text-base bg-background/50 backdrop-blur w-full sm:w-auto" data-testid="button-build-potential">
                 Build Potential
                 <ArrowRight className="ml-2 h-5 w-5" />
