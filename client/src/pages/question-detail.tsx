@@ -33,6 +33,17 @@ interface Comment {
   voteCount?: number;
 }
 
+interface SavedQuestion {
+  id: string;
+  title: string;
+  content: string;
+  tags: string[];
+  category: string;
+  viewCount: number;
+  createdAt: string;
+  authorUsername: string;
+}
+
 export default function QuestionDetail() {
   const { id: questionId } = useParams<{ id: string }>();
   const { toast } = useToast();
@@ -47,6 +58,12 @@ export default function QuestionDetail() {
     queryKey: [`/api/questions/${questionId}/comments`],
     enabled: !!questionId,
   });
+  
+  const { data: savedQuestions = [] } = useQuery<SavedQuestion[]>({
+    queryKey: ["/api/saved-questions"],
+  });
+  
+  const isSaved = savedQuestions.some(q => q.id === questionId);
   
   const postCommentMutation = useMutation({
     mutationFn: async (content: string) => {
@@ -100,6 +117,26 @@ export default function QuestionDetail() {
       toast({
         title: "Error",
         description: error.message || "Failed to save question",
+        variant: "destructive",
+      });
+    },
+  });
+  
+  const unsaveQuestionMutation = useMutation({
+    mutationFn: async () => {
+      return await apiRequest("DELETE", `/api/questions/${questionId}/save`, {});
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/saved-questions"] });
+      toast({
+        title: "Success",
+        description: "Question removed from your collection",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to unsave question",
         variant: "destructive",
       });
     },
@@ -229,12 +266,12 @@ export default function QuestionDetail() {
                 variant="ghost"
                 size="sm"
                 className="h-8 gap-1"
-                onClick={() => saveQuestionMutation.mutate()}
-                disabled={saveQuestionMutation.isPending}
+                onClick={() => isSaved ? unsaveQuestionMutation.mutate() : saveQuestionMutation.mutate()}
+                disabled={saveQuestionMutation.isPending || unsaveQuestionMutation.isPending}
                 data-testid="button-save-question"
               >
-                <Bookmark className="w-4 h-4" />
-                Save
+                <Bookmark className={`w-4 h-4 ${isSaved ? 'fill-current' : ''}`} />
+                {isSaved ? "Unsave" : "Save"}
               </Button>
               <Button
                 variant="ghost"

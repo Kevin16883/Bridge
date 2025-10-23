@@ -94,7 +94,6 @@ interface FollowingUser {
 
 export default function Profile() {
   const [, params] = useRoute("/users/:id");
-  const userId = params?.id;
   const { toast } = useToast();
   const [isEditing, setIsEditing] = useState(false);
   const [isRatingDialogOpen, setIsRatingDialogOpen] = useState(false);
@@ -113,6 +112,9 @@ export default function Profile() {
   const { data: currentUser } = useQuery<UserProfile>({
     queryKey: ["/api/user"],
   });
+
+  // If no userId in URL params, use current user's ID (for /profile route)
+  const userId = params?.id || currentUser?.id;
 
   const { data: user, isLoading } = useQuery<UserProfile>({
     queryKey: [`/api/users/${userId}`],
