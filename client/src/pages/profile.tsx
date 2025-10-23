@@ -35,6 +35,9 @@ import {
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
+import { ActivityCalendar } from "@/components/activity-calendar";
+import { WeeklyReportViewer } from "@/components/weekly-report";
+import { format, subDays } from "date-fns";
 
 interface UserProfile {
   id: string;
@@ -156,6 +159,14 @@ export default function Profile() {
   const { data: isFollowing } = useQuery<{ isFollowing: boolean }>({
     queryKey: [`/api/users/${userId}/is-following`],
     enabled: !!userId && !isOwnProfile && !!currentUser,
+  });
+  
+  const startDate = format(subDays(new Date(), 89), 'yyyy-MM-dd');
+  const endDate = format(new Date(), 'yyyy-MM-dd');
+  
+  const { data: activitiesSummary } = useQuery<any>({
+    queryKey: [`/api/activities/summary?startDate=${startDate}&endDate=${endDate}`],
+    enabled: isOwnProfile,
   });
   
   const togglePrivacyMutation = useMutation({
@@ -515,8 +526,9 @@ export default function Profile() {
 
         {isOwnProfile && (
           <Tabs defaultValue="stats" className="w-full">
-            <TabsList className="grid w-full grid-cols-5">
+            <TabsList className="grid w-full grid-cols-6">
               <TabsTrigger value="stats" data-testid="tab-stats">Statistics</TabsTrigger>
+              <TabsTrigger value="activity" data-testid="tab-activity">Activity</TabsTrigger>
               <TabsTrigger value="saved" data-testid="tab-saved">Saved</TabsTrigger>
               <TabsTrigger value="following" data-testid="tab-following">Following</TabsTrigger>
               <TabsTrigger value="messages" data-testid="tab-messages">Messages</TabsTrigger>
@@ -616,6 +628,23 @@ export default function Profile() {
                   </CardContent>
                 </Card>
               )}
+            </TabsContent>
+
+            <TabsContent value="activity" className="mt-4">
+              <div className="space-y-6">
+                {activitiesSummary && (
+                  <ActivityCalendar 
+                    activities={Object.entries(activitiesSummary.activitiesByDate || {}).map(([date, data]: [string, any]) => ({
+                      activityDate: date,
+                      count: data.count,
+                      duration: data.duration,
+                    }))}
+                    days={90}
+                  />
+                )}
+                
+                <WeeklyReportViewer />
+              </div>
             </TabsContent>
 
             <TabsContent value="saved" className="mt-4">
