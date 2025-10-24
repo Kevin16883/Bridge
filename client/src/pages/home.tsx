@@ -23,31 +23,33 @@ export default function Home() {
           </div>
           
           <div className="grid md:grid-cols-2 gap-8 max-w-5xl mx-auto">
-            <Card className="hover-elevate transition-transform hover:-translate-y-1" data-testid="card-for-providers">
+            <Card className="hover-elevate transition-transform hover:-translate-y-1 flex flex-col" data-testid="card-for-providers">
               <CardHeader>
                 <div className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center mb-4">
                   <Target className="h-6 w-6 text-primary" />
                 </div>
                 <CardTitle className="text-2xl">Demand Provider</CardTitle>
               </CardHeader>
-              <CardContent className="space-y-6">
-                <p className="text-muted-foreground">
-                  Describe your demand in one sentence, AI helps break down tasks and precisely match the most suitable talent
-                </p>
-                <ul className="space-y-2 text-sm">
-                  <li className="flex items-center gap-2">
-                    <div className="w-1.5 h-1.5 rounded-full bg-primary" />
-                    <span>Natural language demand description</span>
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <div className="w-1.5 h-1.5 rounded-full bg-primary" />
-                    <span>AI smart task breakdown</span>
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <div className="w-1.5 h-1.5 rounded-full bg-primary" />
-                    <span>Precise talent matching</span>
-                  </li>
-                </ul>
+              <CardContent className="space-y-6 flex-1 flex flex-col">
+                <div className="space-y-6 flex-1">
+                  <p className="text-muted-foreground">
+                    Describe your demand in one sentence, AI helps break down tasks and precisely match the most suitable talent
+                  </p>
+                  <ul className="space-y-2 text-sm">
+                    <li className="flex items-center gap-2">
+                      <div className="w-1.5 h-1.5 rounded-full bg-primary" />
+                      <span>Natural language demand description</span>
+                    </li>
+                    <li className="flex items-center gap-2">
+                      <div className="w-1.5 h-1.5 rounded-full bg-primary" />
+                      <span>AI smart task breakdown</span>
+                    </li>
+                    <li className="flex items-center gap-2">
+                      <div className="w-1.5 h-1.5 rounded-full bg-primary" />
+                      <span>Precise talent matching</span>
+                    </li>
+                  </ul>
+                </div>
                 <Link href="/create-demand" className="block">
                   <Button className="w-full" data-testid="button-start-as-provider">
                     Post Demand
@@ -57,31 +59,33 @@ export default function Home() {
               </CardContent>
             </Card>
             
-            <Card className="hover-elevate transition-transform hover:-translate-y-1" data-testid="card-for-performers">
+            <Card className="hover-elevate transition-transform hover:-translate-y-1 flex flex-col" data-testid="card-for-performers">
               <CardHeader>
                 <div className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center mb-4">
                   <TrendingUp className="h-6 w-6 text-primary" />
                 </div>
                 <CardTitle className="text-2xl">Task Performer</CardTitle>
               </CardHeader>
-              <CardContent className="space-y-6">
-                <p className="text-muted-foreground">
-                  Complete capability challenges, build potential profile, receive precisely matched task opportunities
-                </p>
-                <ul className="space-y-2 text-sm">
-                  <li className="flex items-center gap-2">
-                    <div className="w-1.5 h-1.5 rounded-full bg-primary" />
-                    <span>Complete capability challenges</span>
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <div className="w-1.5 h-1.5 rounded-full bg-primary" />
-                    <span>Build potential profile</span>
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <div className="w-1.5 h-1.5 rounded-full bg-primary" />
-                    <span>Receive matched tasks</span>
-                  </li>
-                </ul>
+              <CardContent className="space-y-6 flex-1 flex flex-col">
+                <div className="space-y-6 flex-1">
+                  <p className="text-muted-foreground">
+                    Complete capability challenges, build potential profile, receive precisely matched task opportunities
+                  </p>
+                  <ul className="space-y-2 text-sm">
+                    <li className="flex items-center gap-2">
+                      <div className="w-1.5 h-1.5 rounded-full bg-primary" />
+                      <span>Complete capability challenges</span>
+                    </li>
+                    <li className="flex items-center gap-2">
+                      <div className="w-1.5 h-1.5 rounded-full bg-primary" />
+                      <span>Build potential profile</span>
+                    </li>
+                    <li className="flex items-center gap-2">
+                      <div className="w-1.5 h-1.5 rounded-full bg-primary" />
+                      <span>Receive matched tasks</span>
+                    </li>
+                  </ul>
+                </div>
                 <Link href="/tasks" className="block">
                   <Button className="w-full" data-testid="button-start-as-performer">
                     Start Challenge

@@ -35,21 +35,21 @@ export function HowItWorks() {
           </p>
         </div>
         
-        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 max-w-7xl mx-auto">
           {steps.map((step, index) => {
             const Icon = step.icon;
             return (
               <Card key={index} className="relative hover-elevate transition-transform hover:-translate-y-1" data-testid={`card-step-${index}`}>
-                <CardContent className="pt-6">
+                <CardContent className="pt-6 flex flex-col h-full">
                   <div className="absolute -top-4 left-6 w-12 h-12 rounded-lg bg-primary flex items-center justify-center text-primary-foreground font-bold text-lg">
                     {index + 1}
                   </div>
-                  <div className="mt-6 space-y-4">
+                  <div className="mt-6 space-y-4 flex-1 flex flex-col">
                     <div className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center">
                       <Icon className="h-6 w-6 text-primary" />
                     </div>
                     <h3 className="font-semibold text-lg">{step.title}</h3>
-                    <p className="text-sm text-muted-foreground">{step.description}</p>
+                    <p className="text-sm text-muted-foreground flex-1">{step.description}</p>
                   </div>
                 </CardContent>
               </Card>
