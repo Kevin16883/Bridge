@@ -14,7 +14,7 @@ export default function Home() {
       <HowItWorks />
       
       <section className="py-24">
-        <div className="container px-4">
+        <div className="container px-4 mx-auto">
           <div className="text-center mb-16">
             <h2 className="text-4xl font-bold mb-4">Choose Your Role</h2>
             <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
@@ -99,7 +99,7 @@ export default function Home() {
       </section>
       
       <footer className="border-t py-12 bg-muted/30">
-        <div className="container px-4">
+        <div className="container px-4 mx-auto">
           <div className="flex flex-col md:flex-row items-center justify-between gap-4">
             <div className="flex items-center gap-2">
               <div className="h-8 w-8 rounded-lg bg-primary flex items-center justify-center text-primary-foreground font-bold">

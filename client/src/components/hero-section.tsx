@@ -15,8 +15,8 @@ export function HeroSection() {
         <div className="absolute inset-0 bg-gradient-to-r from-background/95 via-background/80 to-background/60" />
       </div>
       
-      <div className="container relative z-10 px-4 py-24">
-        <div className="max-w-3xl">
+      <div className="container relative z-10 px-4 py-24 mx-auto">
+        <div className="max-w-3xl mx-auto">
           <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 border border-primary/20 mb-6">
             <Sparkles className="h-4 w-4 text-primary" />
             <span className="text-sm font-medium text-primary">AI-Driven Smart Matching</span>
