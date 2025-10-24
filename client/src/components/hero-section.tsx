@@ -1,7 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { ArrowRight, Sparkles, Target } from "lucide-react";
 import { Link } from "wouter";
-import heroImage from "@assets/image_1761289079511.png";
+import heroImage from "@assets/image_1761289155772.png";
 
 export function HeroSection() {
   return (
