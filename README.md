@@ -1,10 +1,10 @@
-# Bridge - 智能需求匹配平台
+# Bridge - AI-Powered Potential and Demand Matching Platform
 
 <div align="center">
 
-**将需求转化为机遇，将潜力转化为价值**
+**Transforming Needs into Opportunities, and Potential into Value**
 
-一个基于AI的智能需求-潜力实时匹配平台
+An AI-Driven Intelligent Platform for Matching Demand with Potential in Real-Time
 
 [English](#english) | [中文](#chinese)
 
